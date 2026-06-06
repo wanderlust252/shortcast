@@ -28,6 +28,9 @@ let package = Package(
                 .product(name: "Tokenizers", package: "swift-transformers"),
                 .product(name: "MLXOptimizers", package: "mlx-swift"),
                 .product(name: "MLXProfiler", package: "swift-mlx-profiler"),
+            ],
+            exclude: [
+                "LoRA/Gemma4LoRATrain.swift",
             ]
         ),
         .executableTarget(

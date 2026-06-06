@@ -44,13 +44,17 @@ enum PromptBuilder {
             sections.append("""
             ## Output language
             Write every field in the SAME language that is spoken in the clip — \
-            detect it. Do not translate it to English.
+            detect it. Do not translate it to English. All user-facing text \
+            (`hook`, `description`, and `hashtags`) must be in that language; \
+            keep only JSON keys and platform names in English.
             """)
         } else {
             sections.append("""
             ## Output language
             Write every field in this language: \(language). \
-            Use it regardless of the language spoken in the clip.
+            Use it regardless of the language spoken in the clip. All \
+            user-facing text (`hook`, `description`, and `hashtags`) must be in \
+            \(language); keep only JSON keys and platform names in English.
             """)
         }
 

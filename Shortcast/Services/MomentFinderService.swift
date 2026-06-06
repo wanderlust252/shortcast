@@ -156,7 +156,7 @@ final class MomentFinderService {
             generateParameters: params,
             additionalContext: ["enable_thinking": false])
 
-        let userPrompt = "Transcripción del vídeo (con timestamps):\n\n\(transcript)\n\nDevuelve el JSON de clips."
+        let userPrompt = "Video transcript with timestamps:\n\n\(transcript)\n\nReturn the clips JSON."
 
         Self.log("findMoments: transcript \(transcript.count) chars, captions=\(includeCaptions)")
         var raw = ""
@@ -237,42 +237,42 @@ final class MomentFinderService {
     static func captioningPrompt(language: String?, styleExamples: String) -> String {
         let lang = (language ?? "").trimmed
         let languageRule = lang.isEmpty
-            ? "Escribe TODOS los textos (why, hook, overlay y captions) en el mismo idioma que se habla en el vídeo. No traduzcas al inglés."
-            : "Escribe TODOS los textos (why, hook, overlay y captions) en este idioma: \(lang). Úsalo aunque el vídeo esté en otro idioma."
+            ? "Write ALL user-facing text values (why, hook, overlay, caption hooks, descriptions, and hashtags) in the same language spoken in the video. Do not translate them to English. Keep only JSON keys and platform ids in English."
+            : "Write ALL user-facing text values (why, hook, overlay, caption hooks, descriptions, and hashtags) in this language: \(lang). Use \(lang) even if the transcript is in another language. Keep only JSON keys and platform ids in English."
 
         let style = styleExamples.trimmed
         let styleRule = style.isEmpty ? "" : """
 
-        Voz del creador — imita este estilo (tono, ritmo, emojis, formato):
+        Creator voice — match this style (tone, rhythm, emoji use, formatting):
         \(style)
         """
 
         return """
-        Eres un editor experto en contenido short-form viral (TikTok, Reels, \
-        YouTube Shorts). Te doy la transcripción de un vídeo largo, con timestamps. \
-        Tu trabajo: encontrar los MEJORES momentos para cortar en clips verticales \
-        que enganchen en los 2 primeros segundos, Y para cada clip escribir el \
-        paquete de publicación de las 3 redes.
+        You are an expert short-form video editor for TikTok, Instagram Reels, \
+        and YouTube Shorts. I will give you a long-video transcript with \
+        timestamps. Your job is to find the BEST moments to cut into vertical \
+        clips that hook viewers in the first 2 seconds, AND to write the \
+        three-platform publishing package for each clip.
 
-        Reglas:
-        - Cada clip dura entre 15 y 50 segundos. Una idea completa, nada cortado a medias.
-        - Entre 3 y 6 clips, ordenados de mejor a peor.
+        Rules:
+        - Each clip must be 15 to 50 seconds. Keep one complete idea; never cut mid-thought.
+        - Return 3 to 6 clips, ordered from strongest to weakest.
         - \(languageRule)
-        - Los hashtags van como palabras sueltas, SIN '#', y cada uno único (no repitas).
-        - Devuelve SOLO un JSON válido, sin texto alrededor, con esta forma EXACTA:
+        - Hashtags are plain words, with NO leading '#', and each one must be unique.
+        - Return ONLY valid JSON, with no surrounding prose, using this EXACT shape:
         {"clips":[{
           "start":"MM:SS",
           "end":"MM:SS",
-          "why":"por qué es viral",
-          "hook":"primera frase del clip que para el scroll",
-          "overlay":"texto MUY corto (3-6 palabras) para sobreimprimir en pantalla",
+          "why":"why this works as a viral short",
+          "hook":"the first line that stops the scroll",
+          "overlay":"very short on-screen hook, 3-6 words",
           "captions":{
-            "tiktok":{"hook":"primera línea que para el scroll, máx 90 caracteres","description":"caption corta y con punch","hashtags":["tag","tag","tag"]},
-            "instagram":{"hook":"primera línea fuerte","description":"2-4 párrafos cortos, storytelling, acaba con llamada a la acción","hashtags":["...20-30 tags mezclando alcance grande y nicho..."]},
-            "youtube":{"hook":"título conciso y buscable, 40-60 caracteres","description":"descripción rica en keywords para búsqueda","hashtags":["...3-5 tags..."]}
+            "tiktok":{"hook":"scroll-stopping first line, max 90 characters","description":"short punchy caption","hashtags":["tag","tag","tag"]},
+            "instagram":{"hook":"strong first line","description":"2-4 short paragraphs, storytelling, ending with a call to action","hashtags":["...20-30 tags mixing broad and niche reach..."]},
+            "youtube":{"hook":"concise searchable title, 40-60 characters","description":"keyword-rich search description","hashtags":["...3-5 tags..."]}
           }
         }]}
-        - No inventes nada que no esté en la transcripción.\(styleRule)
+        - Do not invent anything that is not in the transcript.\(styleRule)
         """
     }
 }

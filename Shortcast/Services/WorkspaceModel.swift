@@ -174,23 +174,42 @@ final class WorkspaceModel {
                 for: job.url, languageHint: settings.languageOverride)
             // Trust the language of the actual text over Whisper's 30s auto-detect.
             let captionLanguage = transcript.contentLanguage ?? transcript.language
-            Self.log("transcript ready in \(Self.elapsed(since: t0)) — whisper=\(transcript.language ?? "?"), text=\(captionLanguage ?? "?")")
+            let outputLanguage = settings.languageOverride.trimmed.isEmpty
+                ? captionLanguage
+                : settings.languageOverride
+            Self.log("transcript ready in \(Self.elapsed(since: t0)) — whisper=\(transcript.language ?? "?"), text=\(captionLanguage ?? "?"), output=\(outputLanguage ?? "?")")
             try Task.checkCancellation()
 
-            // 2. Find the viral moments — one Qwen pass over the full transcript.
+            // 2. Find the viral moments — local MLX by default, or MiMo API if selected.
             phase = .findingMoments
             let t1 = Date()
-            await modelManager.prepareDirector(profile: settings.copywriterModel.directorProfile)
-            Self.log("director ready in \(Self.elapsed(since: t1)) — \(settings.copywriterModel.directorProfile.displayName)")
-            // The two text models write the captions in this same pass.
-            let useInlineCaptions = settings.copywriterModel.usesInlineCaptions
+            if let profile = settings.copywriterModel.directorProfile {
+                await modelManager.prepareDirector(profile: profile)
+                Self.log("director ready in \(Self.elapsed(since: t1)) — \(profile.displayName)")
+            } else {
+                Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
+            }
             let t2 = Date()
-            let candidates = try await modelManager.momentFinder.findMoments(
-                transcript: transcript.srtLike(),
-                includeCaptions: useInlineCaptions,
-                language: captionLanguage,
-                styleExamples: settings.styleExamples)
-            Self.log("found \(candidates.count) moment(s) in \(Self.elapsed(since: t2)), captions inline=\(useInlineCaptions)")
+            let candidates: [ClipCandidate]
+            if settings.copywriterModel.usesRemoteMimo {
+                let mimo = MimoService(
+                    apiKey: settings.mimoAPIKey,
+                    modelID: settings.mimoModelID,
+                    baseURL: settings.mimoBaseURL)
+                candidates = try await mimo.findMoments(
+                    transcript: transcript.srtLike(),
+                    language: outputLanguage,
+                    styleExamples: settings.styleExamples)
+            } else {
+                // The two text models write the captions in this same pass.
+                let useInlineCaptions = settings.copywriterModel.usesInlineCaptions
+                candidates = try await modelManager.momentFinder.findMoments(
+                    transcript: transcript.srtLike(),
+                    includeCaptions: useInlineCaptions,
+                    language: outputLanguage,
+                    styleExamples: settings.styleExamples)
+            }
+            Self.log("found \(candidates.count) moment(s) in \(Self.elapsed(since: t2)), captions inline=\(settings.copywriterModel.usesInlineCaptions)")
             try Task.checkCancellation()
 
             // Seed cards; they fill in as each clip is cut + captioned.
@@ -224,7 +243,7 @@ final class WorkspaceModel {
                     if !clip.candidate.variants.isEmpty {
                         // Captions already came from the Director's one pass.
                         clip.variants = clip.candidate.variants
-                        clip.detectedLanguage = captionLanguage
+                        clip.detectedLanguage = outputLanguage
                         clip.stage = .ready
                         Self.log("clip \(index + 1)/\(clips.count) ready — cut \(Self.elapsed(since: tCut)), captions inline")
                     } else {
@@ -281,8 +300,20 @@ final class WorkspaceModel {
         case .gemma12B, .qwen35_9b:
             // Inline-caption models normally write captions in the moment-finding
             // pass; this is the fallback per-clip path using the same Director.
-            await modelManager.prepareDirector(profile: settings.copywriterModel.directorProfile)
+            if let profile = settings.copywriterModel.directorProfile {
+                await modelManager.prepareDirector(profile: profile)
+            }
             return try await modelManager.momentFinder.caption(
+                transcriptSlice: clip.transcriptSlice,
+                hook: clip.candidate.hook,
+                languageOverride: effectiveLanguage,
+                styleExamples: settings.styleExamples)
+        case .mimo:
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
+            return try await mimo.caption(
                 transcriptSlice: clip.transcriptSlice,
                 hook: clip.candidate.hook,
                 languageOverride: effectiveLanguage,

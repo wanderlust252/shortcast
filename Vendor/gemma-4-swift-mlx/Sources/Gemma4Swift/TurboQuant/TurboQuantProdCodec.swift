@@ -76,7 +76,7 @@ public final class TurboQuantProdCodec: @unchecked Sendable {
         let signBitsRaw = turboQuantUnpackLowbit(state.qjlSigns, bits: 1, length: dim).asType(.float32)
         let signs = signBitsRaw * 2.0 - 1.0
 
-        let qjlUnit = scale
+        let qjlUnit = scaleArray
             * state.residualNorms[.ellipsis, .newAxis].asType(.float32)
             * matmul(signs, projection)
 
@@ -123,7 +123,7 @@ public final class TurboQuantProdCodec: @unchecked Sendable {
         let signBitsRaw = turboQuantUnpackLowbit(state.qjlSigns, bits: 1, length: dim).asType(.float32)
         let signs = signBitsRaw * 2.0 - 1.0
 
-        let qjlScore = scale
+        let qjlScore = scaleArray
             * state.residualNorms.asType(.float32)[0..., 0..., .newAxis, .newAxis, 0...]
             * MLX.einsum("bhmld,bhtd->bhmlt", projQueries, signs)
 

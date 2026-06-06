@@ -19,6 +19,7 @@ final class AppSettings {
         case gemma12B = "gemma12b"
         case qwen35_9b = "qwen"
         case gemmaE4B = "gemma"
+        case mimo = "mimo"
 
         var id: String { rawValue }
 
@@ -27,6 +28,7 @@ final class AppSettings {
             case .gemma12B:  "Gemma 4 12B"
             case .qwen35_9b: "Qwen 3.5 9B"
             case .gemmaE4B:  "Gemma 4 E4B · 4-bit"
+            case .mimo:      "MiMo API"
             }
         }
 
@@ -35,16 +37,25 @@ final class AppSettings {
             case .gemma12B:  "Finds the moments AND writes all three captions in one pass — strongest writing, one model, keeps the spoken language."
             case .qwen35_9b: "Finds the moments AND writes all three captions in one pass — lighter, one model, keeps the spoken language."
             case .gemmaE4B:  "Watches each clip (frames + audio) and captions it in a separate pass per clip."
+            case .mimo:      "Uses Xiaomi MiMo through its OpenAI-compatible API to find moments and write captions. Video processing stays local."
             }
         }
 
         /// The text model that finds the moments. The two inline options are
         /// their own Director; the clip-watching option still needs a Director,
         /// for which we use the default (Gemma 4 12B).
-        var directorProfile: ChatModelProfile {
+        var directorProfile: ChatModelProfile? {
             switch self {
-            case .qwen35_9b:           .qwen35_9b
-            case .gemma12B, .gemmaE4B: .gemma12B
+            case .qwen35_9b:           return .qwen35_9b
+            case .gemma12B, .gemmaE4B: return .gemma12B
+            case .mimo:                return nil
+            }
+        }
+
+        var directorDisplayName: String {
+            switch self {
+            case .mimo: return "MiMo API"
+            default:    return directorProfile?.displayName ?? displayName
             }
         }
 
@@ -52,14 +63,16 @@ final class AppSettings {
         /// separate per-clip captioning step runs).
         var usesInlineCaptions: Bool {
             switch self {
-            case .gemma12B, .qwen35_9b: true
-            case .gemmaE4B:             false
+            case .gemma12B, .qwen35_9b, .mimo: true
+            case .gemmaE4B:                    false
             }
         }
 
         /// True for the multimodal Gemma E4B path that watches each clip — the
         /// only option that loads a second model alongside the Director.
         var watchesClips: Bool { self == .gemmaE4B }
+
+        var usesRemoteMimo: Bool { self == .mimo }
     }
 
     /// Upload-Post API key. Mirrored to `UserDefaults` on every change.
@@ -70,6 +83,22 @@ final class AppSettings {
     /// Upload-Post profile name (from "Manage Users" — NOT a social handle).
     var profileName: String {
         didSet { defaults.set(profileName, forKey: Keys.profile) }
+    }
+
+    /// Xiaomi MiMo API key. Only used when the caption writer is set to MiMo.
+    var mimoAPIKey: String {
+        didSet { persistMimoAPIKey() }
+    }
+
+    /// Xiaomi model id for the OpenAI-compatible Chat Completions API.
+    var mimoModelID: String {
+        didSet { defaults.set(mimoModelID, forKey: Keys.mimoModel) }
+    }
+
+    /// Optional Xiaomi MiMo OpenAI-compatible base URL. Token Plan users receive
+    /// a region-specific URL; empty lets the service infer a sensible default.
+    var mimoBaseURL: String {
+        didSet { defaults.set(mimoBaseURL, forKey: Keys.mimoBaseURL) }
     }
 
     /// Optional caption language override (e.g. "English", "es"). Empty = match
@@ -123,6 +152,9 @@ final class AppSettings {
         } else {
             self.apiKey = ""
         }
+        self.mimoAPIKey = defaults.string(forKey: Keys.mimoAPIKey) ?? ""
+        self.mimoModelID = defaults.string(forKey: Keys.mimoModel) ?? "mimo-v2.5-pro"
+        self.mimoBaseURL = defaults.string(forKey: Keys.mimoBaseURL) ?? ""
         self.profileName = defaults.string(forKey: Keys.profile) ?? ""
         self.languageOverride = defaults.string(forKey: Keys.language) ?? ""
         self.styleExamples = defaults.string(forKey: Keys.style) ?? ""
@@ -152,8 +184,20 @@ final class AppSettings {
         }
     }
 
+    private func persistMimoAPIKey() {
+        let trimmed = mimoAPIKey.trimmed
+        if trimmed.isEmpty {
+            defaults.removeObject(forKey: Keys.mimoAPIKey)
+        } else {
+            defaults.set(trimmed, forKey: Keys.mimoAPIKey)
+        }
+    }
+
     private enum Keys {
         static let profile     = "shortcast.profileName"
+        static let mimoAPIKey  = "shortcast.mimo.apiKey"
+        static let mimoModel   = "shortcast.mimo.model"
+        static let mimoBaseURL = "shortcast.mimo.baseURL"
         static let language    = "shortcast.languageOverride"
         static let style       = "shortcast.styleExamples"
         static let tiktokDraft = "shortcast.tiktokAsDraft"

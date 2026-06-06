@@ -11,6 +11,7 @@ struct SettingsView: View {
         case idle, checking, ok, failed(String)
     }
     @State private var connection: ConnectionState = .idle
+    @State private var mimoConnection: ConnectionState = .idle
 
     var body: some View {
         @Bindable var settings = settings
@@ -62,6 +63,24 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Xiaomi MiMo") {
+                SecureField("MiMo API key", text: $settings.mimoAPIKey)
+                TextField("Model", text: $settings.mimoModelID, prompt: Text("mimo-v2.5-pro"))
+                TextField("Base URL", text: $settings.mimoBaseURL, prompt: Text(mimoBaseURLPrompt))
+
+                Text("Used only when Caption writer is set to MiMo API. For Token Plan keys (`tp-...`), use the Base URL from Subscription Management; empty defaults to Singapore. Pay-as-you-go keys (`sk-...`) use the public API endpoint.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Button("Test MiMo", action: testMimoConnection)
+                        .disabled(settings.mimoAPIKey.trimmed.isEmpty || mimoConnection == .checking)
+                    mimoConnectionStatus
+                    Spacer()
+                    Link("MiMo console ↗", destination: URL(string: "https://platform.xiaomimimo.com")!)
+                }
+            }
+
             Section("How a long video becomes shorts") {
                 pipelineRole(
                     step: "1", icon: "waveform",
@@ -72,15 +91,15 @@ struct SettingsView: View {
                 pipelineRole(
                     step: "2", icon: "wand.and.stars",
                     title: "Find the viral moments",
-                    model: settings.copywriterModel.directorProfile.displayName,
+                    model: settings.copywriterModel.directorDisplayName,
                     detail: "Reads the whole transcript and picks the best clips. Follows your model choice below.",
-                    status: directorStatus)
+                    status: selectedDirectorStatus)
                 pipelineRole(
                     step: "3", icon: "text.bubble",
                     title: "Write the captions",
                     model: settings.copywriterModel.displayName,
                     detail: "You choose this one ↓",
-                    status: settings.copywriterModel.watchesClips ? modelStatus : directorStatus)
+                    status: selectedCaptionStatus)
             }
 
             Section("Caption writer") {
@@ -92,9 +111,15 @@ struct SettingsView: View {
                 Text(settings.copywriterModel.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Picks the model that finds the moments and writes the captions for shorts cut from a long video. Captioning a single short video always uses Gemma E4B (it watches the clip directly).")
+                Text("Picks the model that finds the moments and writes the captions for shorts cut from a long video. MiMo replaces the local Director/copywriter for this long-video flow. Captioning a single short video always uses Gemma E4B (it watches the clip directly).")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if settings.copywriterModel.usesRemoteMimo && settings.mimoAPIKey.trimmed.isEmpty {
+                    Label("Add a MiMo API key above before processing a long video with MiMo.",
+                          systemImage: "key")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
                 if settings.copywriterModel.watchesClips && modelManager.systemRAMGB < 24 {
                     Label("On this Mac, Shortcast frees the moment-finder before captioning to stay within memory.",
                           systemImage: "memorychip")
@@ -129,7 +154,17 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var connectionStatus: some View {
-        switch connection {
+        statusView(connection)
+    }
+
+    @ViewBuilder
+    private var mimoConnectionStatus: some View {
+        statusView(mimoConnection)
+    }
+
+    @ViewBuilder
+    private func statusView(_ state: ConnectionState) -> some View {
+        switch state {
         case .idle:
             EmptyView()
         case .checking:
@@ -157,6 +192,22 @@ struct SettingsView: View {
                 connection = .ok
             } catch {
                 connection = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func testMimoConnection() {
+        mimoConnection = .checking
+        let client = MimoService(
+            apiKey: settings.mimoAPIKey,
+            modelID: settings.mimoModelID,
+            baseURL: settings.mimoBaseURL)
+        Task {
+            do {
+                try await client.checkConnection()
+                mimoConnection = .ok
+            } catch {
+                mimoConnection = .failed(error.localizedDescription)
             }
         }
     }
@@ -202,5 +253,20 @@ struct SettingsView: View {
         case .ready:                       "Ready"
         case .failed:                      "Failed to load"
         }
+    }
+
+    private var selectedDirectorStatus: String {
+        settings.copywriterModel.usesRemoteMimo ? "Remote API" : directorStatus
+    }
+
+    private var selectedCaptionStatus: String {
+        if settings.copywriterModel.usesRemoteMimo { return "Remote API" }
+        return settings.copywriterModel.watchesClips ? modelStatus : directorStatus
+    }
+
+    private var mimoBaseURLPrompt: String {
+        settings.mimoAPIKey.trimmed.hasPrefix("tp-")
+            ? "https://token-plan-sgp.xiaomimimo.com/v1"
+            : "https://api.xiaomimimo.com/v1"
     }
 }
