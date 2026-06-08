@@ -85,8 +85,12 @@ struct ShortsResultsView: View {
     @ViewBuilder
     private var footer: some View {
         HStack {
-            if settings.tiktokAsDraft {
+            if settings.publishingProvider == .uploadPost && settings.tiktokAsDraft {
                 Label("TikTok uploads as a draft", systemImage: "tray.and.arrow.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if settings.publishingProvider == .tiktokOfficial {
+                Label(settings.tiktokPublishMode.displayName, systemImage: "music.note")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -100,7 +104,10 @@ struct ShortsResultsView: View {
                         .frame(minWidth: 120)
                 }
                 .controlSize(.large)
-                .disabled(workspace.approvedReadyCount == 0)
+                .disabled(workspace.approvedReadyCount == 0 || settings.publishingProvider == .tiktokOfficial)
+                .help(settings.publishingProvider == .tiktokOfficial
+                      ? "TikTok official API scheduling is not implemented yet."
+                      : "Schedule approved shorts")
 
                 Button {
                     Task { await workspace.publishAllApproved(settings: settings) }
@@ -122,7 +129,7 @@ struct ShortsResultsView: View {
                 .disabled(workspace.isPublishingAll || workspace.approvedReadyCount == 0)
             } else {
                 HStack(spacing: 10) {
-                    Text("Connect your Upload-Post account to publish.")
+                    Text("Configure \(settings.publishingProvider.displayName) to publish.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     SettingsLink { Text("Open Settings") }

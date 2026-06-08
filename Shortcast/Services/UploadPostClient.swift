@@ -32,19 +32,6 @@ struct UploadPostClient: Sendable {
 
     private static let base = URL(string: "https://api.upload-post.com")!
 
-    enum PlatformOutcome: Sendable, Equatable {
-        case success(url: String?)
-        /// Accepted by Upload-Post but still processing / scheduled.
-        case submitted
-        case failure(String)
-    }
-
-    struct PublishReport: Sendable {
-        var outcomes: [SocialPlatform: PlatformOutcome]
-        var requestID: String?
-        var rawResponse: String
-    }
-
     // MARK: - Connection check
 
     /// Calls `GET /api/uploadposts/me`; throws if the key is rejected.
@@ -205,7 +192,11 @@ struct UploadPostClient: Sendable {
                 outcomes[platform] = .submitted
             }
         }
-        return PublishReport(outcomes: outcomes, requestID: requestID, rawResponse: raw)
+        return PublishReport(
+            provider: .uploadPost,
+            outcomes: outcomes,
+            requestID: requestID,
+            rawResponse: raw)
     }
 }
 

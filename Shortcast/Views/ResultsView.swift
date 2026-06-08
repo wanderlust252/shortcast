@@ -69,8 +69,12 @@ struct ResultsView: View {
     @ViewBuilder
     private var footer: some View {
         HStack {
-            if settings.tiktokAsDraft {
+            if settings.publishingProvider == .uploadPost && settings.tiktokAsDraft {
                 Label("TikTok will be uploaded as a draft", systemImage: "tray.and.arrow.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if settings.publishingProvider == .tiktokOfficial {
+                Label(settings.tiktokPublishMode.displayName, systemImage: "music.note")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -87,7 +91,7 @@ struct ResultsView: View {
                         }
                         .frame(minWidth: 170)
                     } else {
-                        Label("Publish to all three", systemImage: "paperplane.fill")
+                        Label(settings.publishingProvider.publishButtonTitle, systemImage: "paperplane.fill")
                             .frame(minWidth: 170)
                     }
                 }
@@ -96,7 +100,7 @@ struct ResultsView: View {
                 .disabled(workspace.isPublishing || workspace.variants.isEmpty)
             } else {
                 HStack(spacing: 10) {
-                    Text("Connect your Upload-Post account to publish.")
+                    Text("Configure \(settings.publishingProvider.displayName) to publish.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                     SettingsLink {

@@ -4,7 +4,7 @@ import SwiftUI
 /// single-video flow and per-clip shorts publishing — pass the report/error.
 struct PublishResultView: View {
 
-    let report: UploadPostClient.PublishReport?
+    let report: PublishReport?
     let error: String?
 
     @Environment(\.dismiss) private var dismiss
@@ -45,11 +45,12 @@ struct PublishResultView: View {
     }
 
     private var title: String {
-        error != nil ? "Publish failed" : "Sent to Upload-Post"
+        if error != nil { return "Publish failed" }
+        return "Sent to \(report?.provider.displayName ?? "publisher")"
     }
 
     @ViewBuilder
-    private func outcomeRow(_ platform: SocialPlatform, _ outcome: UploadPostClient.PlatformOutcome) -> some View {
+    private func outcomeRow(_ platform: SocialPlatform, _ outcome: PlatformOutcome) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             switch outcome {
             case .success:
@@ -68,10 +69,10 @@ struct PublishResultView: View {
         }
     }
 
-    private func detail(for outcome: UploadPostClient.PlatformOutcome) -> String {
+    private func detail(for outcome: PlatformOutcome) -> String {
         switch outcome {
         case .success(let url):       url ?? "Published."
-        case .submitted:              "Accepted — finishing on Upload-Post."
+        case .submitted:              "Accepted — finishing on the provider."
         case .failure(let message):   message
         }
     }

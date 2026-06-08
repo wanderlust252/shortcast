@@ -75,6 +75,27 @@ final class AppSettings {
         var usesRemoteMimo: Bool { self == .mimo }
     }
 
+    enum TikTokPublishMode: String, CaseIterable, Identifiable, Codable, Sendable {
+        case inboxUpload
+        case directPost
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .inboxUpload: "Inbox upload"
+            case .directPost:  "Direct post"
+            }
+        }
+
+        var requiredScope: String {
+            switch self {
+            case .inboxUpload: "video.upload"
+            case .directPost:  "video.publish"
+            }
+        }
+    }
+
     /// Upload-Post API key. Mirrored to `UserDefaults` on every change.
     var apiKey: String {
         didSet { persistAPIKey() }
@@ -83,6 +104,51 @@ final class AppSettings {
     /// Upload-Post profile name (from "Manage Users" — NOT a social handle).
     var profileName: String {
         didSet { defaults.set(profileName, forKey: Keys.profile) }
+    }
+
+    /// Which publishing backend is used when pressing Publish.
+    var publishingProvider: PublishingProviderID {
+        didSet { defaults.set(publishingProvider.rawValue, forKey: Keys.publishingProvider) }
+    }
+
+    /// TikTok developer app metadata. The manual-token flow does not use these
+    /// directly, but keeping them here makes the settings screen self-contained.
+    var tiktokClientKey: String {
+        didSet { defaults.set(tiktokClientKey, forKey: Keys.tiktokClientKey) }
+    }
+
+    var tiktokClientSecret: String {
+        didSet { persistTikTokClientSecret() }
+    }
+
+    /// User access token obtained from TikTok OAuth with `video.upload` or
+    /// `video.publish`, depending on `tiktokPublishMode`.
+    var tiktokAccessToken: String {
+        didSet { persistTikTokAccessToken() }
+    }
+
+    var tiktokPublishMode: TikTokPublishMode {
+        didSet { defaults.set(tiktokPublishMode.rawValue, forKey: Keys.tiktokPublishMode) }
+    }
+
+    var tiktokPrivacyLevel: String {
+        didSet { defaults.set(tiktokPrivacyLevel, forKey: Keys.tiktokPrivacyLevel) }
+    }
+
+    var tiktokDisableDuet: Bool {
+        didSet { defaults.set(tiktokDisableDuet, forKey: Keys.tiktokDisableDuet) }
+    }
+
+    var tiktokDisableStitch: Bool {
+        didSet { defaults.set(tiktokDisableStitch, forKey: Keys.tiktokDisableStitch) }
+    }
+
+    var tiktokDisableComment: Bool {
+        didSet { defaults.set(tiktokDisableComment, forKey: Keys.tiktokDisableComment) }
+    }
+
+    var tiktokLabelAIGC: Bool {
+        didSet { defaults.set(tiktokLabelAIGC, forKey: Keys.tiktokLabelAIGC) }
     }
 
     /// Xiaomi MiMo API key. Only used when the caption writer is set to MiMo.
@@ -156,6 +222,18 @@ final class AppSettings {
         self.mimoModelID = defaults.string(forKey: Keys.mimoModel) ?? "mimo-v2.5-pro"
         self.mimoBaseURL = defaults.string(forKey: Keys.mimoBaseURL) ?? ""
         self.profileName = defaults.string(forKey: Keys.profile) ?? ""
+        self.publishingProvider = defaults.string(forKey: Keys.publishingProvider)
+            .flatMap(PublishingProviderID.init) ?? .uploadPost
+        self.tiktokClientKey = defaults.string(forKey: Keys.tiktokClientKey) ?? ""
+        self.tiktokClientSecret = defaults.string(forKey: Keys.tiktokClientSecret) ?? ""
+        self.tiktokAccessToken = defaults.string(forKey: Keys.tiktokAccessToken) ?? ""
+        self.tiktokPublishMode = defaults.string(forKey: Keys.tiktokPublishMode)
+            .flatMap(TikTokPublishMode.init) ?? .inboxUpload
+        self.tiktokPrivacyLevel = defaults.string(forKey: Keys.tiktokPrivacyLevel) ?? "SELF_ONLY"
+        self.tiktokDisableDuet = defaults.object(forKey: Keys.tiktokDisableDuet) as? Bool ?? false
+        self.tiktokDisableStitch = defaults.object(forKey: Keys.tiktokDisableStitch) as? Bool ?? false
+        self.tiktokDisableComment = defaults.object(forKey: Keys.tiktokDisableComment) as? Bool ?? false
+        self.tiktokLabelAIGC = defaults.object(forKey: Keys.tiktokLabelAIGC) as? Bool ?? false
         self.languageOverride = defaults.string(forKey: Keys.language) ?? ""
         self.styleExamples = defaults.string(forKey: Keys.style) ?? ""
         // Defaults to true on first launch (no stored value yet).
@@ -172,7 +250,16 @@ final class AppSettings {
 
     /// True once the app has enough to publish.
     var isConfigured: Bool {
-        !apiKey.trimmed.isEmpty && !profileName.trimmed.isEmpty
+        switch publishingProvider {
+        case .uploadPost:
+            !apiKey.trimmed.isEmpty && !profileName.trimmed.isEmpty
+        case .tiktokOfficial:
+            !tiktokAccessToken.trimmed.isEmpty
+        }
+    }
+
+    var activePublishingProvider: any PublishingProvider {
+        PublishingProviderFactory.make(publishingProvider)
     }
 
     private func persistAPIKey() {
@@ -193,8 +280,36 @@ final class AppSettings {
         }
     }
 
+    private func persistTikTokClientSecret() {
+        let trimmed = tiktokClientSecret.trimmed
+        if trimmed.isEmpty {
+            defaults.removeObject(forKey: Keys.tiktokClientSecret)
+        } else {
+            defaults.set(trimmed, forKey: Keys.tiktokClientSecret)
+        }
+    }
+
+    private func persistTikTokAccessToken() {
+        let trimmed = tiktokAccessToken.trimmed
+        if trimmed.isEmpty {
+            defaults.removeObject(forKey: Keys.tiktokAccessToken)
+        } else {
+            defaults.set(trimmed, forKey: Keys.tiktokAccessToken)
+        }
+    }
+
     private enum Keys {
         static let profile     = "shortcast.profileName"
+        static let publishingProvider = "shortcast.publishingProvider"
+        static let tiktokClientKey = "shortcast.tiktok.clientKey"
+        static let tiktokClientSecret = "shortcast.tiktok.clientSecret"
+        static let tiktokAccessToken = "shortcast.tiktok.accessToken"
+        static let tiktokPublishMode = "shortcast.tiktok.publishMode"
+        static let tiktokPrivacyLevel = "shortcast.tiktok.privacyLevel"
+        static let tiktokDisableDuet = "shortcast.tiktok.disableDuet"
+        static let tiktokDisableStitch = "shortcast.tiktok.disableStitch"
+        static let tiktokDisableComment = "shortcast.tiktok.disableComment"
+        static let tiktokLabelAIGC = "shortcast.tiktok.labelAIGC"
         static let mimoAPIKey  = "shortcast.mimo.apiKey"
         static let mimoModel   = "shortcast.mimo.model"
         static let mimoBaseURL = "shortcast.mimo.baseURL"

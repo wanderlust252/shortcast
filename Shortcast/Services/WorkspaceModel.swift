@@ -82,7 +82,7 @@ final class WorkspaceModel {
 
     // Publishing (single-video flow)
     private(set) var isPublishing = false
-    private(set) var publishReport: UploadPostClient.PublishReport?
+    private(set) var publishReport: PublishReport?
     private(set) var publishError: String?
     /// True while "Publish all approved" runs over the shorts.
     private(set) var isPublishingAll = false
@@ -370,14 +370,15 @@ final class WorkspaceModel {
         isPublishing = true
         defer { isPublishing = false }
 
-        let client = UploadPostClient(
-            apiKey: settings.apiKey,
-            profileName: settings.profileName)
+        let provider = settings.activePublishingProvider
+        let publishVariants = variants.filter { provider.supportedPlatforms.contains($0.platform) }
         do {
-            publishReport = try await client.publish(
+            publishReport = try await provider.publish(
                 videoURL: job.url,
-                variants: variants,
-                tiktokAsDraft: settings.tiktokAsDraft)
+                variants: publishVariants,
+                tiktokAsDraft: settings.tiktokAsDraft,
+                scheduledDate: nil,
+                settings: settings)
         } catch {
             publishError = error.localizedDescription
         }

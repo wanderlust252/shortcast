@@ -43,7 +43,7 @@ final class ShortClip: Identifiable {
 
     // Per-clip publish state.
     private(set) var isPublishing = false
-    private(set) var publishReport: UploadPostClient.PublishReport?
+    private(set) var publishReport: PublishReport?
     var publishError: String?
     /// Set when the clip was published as a scheduled post (future date).
     private(set) var scheduledDate: Date?
@@ -111,15 +111,15 @@ final class ShortClip: Identifiable {
         }
         defer { if isTemporary { try? FileManager.default.removeItem(at: uploadURL) } }
 
-        let client = UploadPostClient(
-            apiKey: settings.apiKey,
-            profileName: settings.profileName)
+        let provider = settings.activePublishingProvider
+        let publishVariants = variants.filter { provider.supportedPlatforms.contains($0.platform) }
         do {
-            publishReport = try await client.publish(
+            publishReport = try await provider.publish(
                 videoURL: uploadURL,
-                variants: variants,
+                variants: publishVariants,
                 tiktokAsDraft: settings.tiktokAsDraft,
-                scheduledDate: scheduledDate)
+                scheduledDate: scheduledDate,
+                settings: settings)
             self.scheduledDate = scheduledDate
         } catch {
             publishError = error.localizedDescription

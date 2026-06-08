@@ -11,12 +11,26 @@ struct SettingsView: View {
         case idle, checking, ok, failed(String)
     }
     @State private var connection: ConnectionState = .idle
+    @State private var tiktokConnection: ConnectionState = .idle
     @State private var mimoConnection: ConnectionState = .idle
 
     var body: some View {
         @Bindable var settings = settings
 
         Form {
+            Section("Publishing provider") {
+                Picker("Provider", selection: $settings.publishingProvider) {
+                    ForEach(PublishingProviderID.allCases) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+                Text(settings.publishingProvider == .uploadPost
+                     ? "Upload-Post publishes TikTok, Instagram Reels and YouTube Shorts."
+                     : "TikTok official API uploads only the TikTok variant. Instagram and YouTube are not sent.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Upload-Post account") {
                 SecureField("API key", text: $settings.apiKey)
                 TextField("Profile name", text: $settings.profileName)
@@ -31,6 +45,51 @@ struct SettingsView: View {
                     connectionStatus
                     Spacer()
                     Link("Connect accounts ↗", destination: URL(string: "https://app.upload-post.com")!)
+                }
+            }
+
+            Section("TikTok official API") {
+                TextField("Client key", text: $settings.tiktokClientKey)
+                SecureField("Client secret", text: $settings.tiktokClientSecret)
+                SecureField("User access token", text: $settings.tiktokAccessToken)
+
+                Picker("Mode", selection: $settings.tiktokPublishMode) {
+                    ForEach(AppSettings.TikTokPublishMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+
+                Text("Paste a TikTok user access token with scope **\(settings.tiktokPublishMode.requiredScope)**. Client key/secret are stored for reference; this build does not run OAuth automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if settings.tiktokPublishMode == .directPost {
+                    Picker("Privacy", selection: $settings.tiktokPrivacyLevel) {
+                        Text("Self only").tag("SELF_ONLY")
+                        Text("Public").tag("PUBLIC_TO_EVERYONE")
+                        Text("Followers").tag("FOLLOWER_OF_CREATOR")
+                        Text("Mutual friends").tag("MUTUAL_FOLLOW_FRIENDS")
+                    }
+                    Toggle("Disable comments", isOn: $settings.tiktokDisableComment)
+                    Toggle("Disable duet", isOn: $settings.tiktokDisableDuet)
+                    Toggle("Disable stitch", isOn: $settings.tiktokDisableStitch)
+                    Toggle("Label as AI-generated", isOn: $settings.tiktokLabelAIGC)
+
+                    Text("Direct Post must use one of the privacy options returned by TikTok for the account. If Public fails, try Self only or query creator info with Test TikTok.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Inbox upload sends only the video file to TikTok. Finish caption, privacy and posting inside TikTok.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack(spacing: 10) {
+                    Button("Test TikTok", action: testTikTokConnection)
+                        .disabled(settings.tiktokAccessToken.trimmed.isEmpty || tiktokConnection == .checking)
+                    statusView(tiktokConnection)
+                    Spacer()
+                    Link("TikTok docs ↗", destination: URL(string: "https://developers.tiktok.com/doc/content-posting-api-reference-upload-video")!)
                 }
             }
 
@@ -58,7 +117,7 @@ struct SettingsView: View {
 
             Section("Publishing") {
                 Toggle("Upload TikTok as a draft", isOn: $settings.tiktokAsDraft)
-                Text("Drafts land in the TikTok inbox so you can finish editing in the app before posting.")
+                Text("Used by Upload-Post. For TikTok official API, choose Inbox upload or Direct post in the TikTok section.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -183,15 +242,26 @@ struct SettingsView: View {
 
     private func testConnection() {
         connection = .checking
-        let client = UploadPostClient(
-            apiKey: settings.apiKey,
-            profileName: settings.profileName)
+        let provider = UploadPostProvider()
         Task {
             do {
-                try await client.checkConnection()
+                try await provider.checkConnection(settings: settings)
                 connection = .ok
             } catch {
                 connection = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    private func testTikTokConnection() {
+        tiktokConnection = .checking
+        let provider = TikTokOfficialProvider()
+        Task {
+            do {
+                try await provider.checkConnection(settings: settings)
+                tiktokConnection = .ok
+            } catch {
+                tiktokConnection = .failed(error.localizedDescription)
             }
         }
     }
