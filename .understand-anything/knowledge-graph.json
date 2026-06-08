@@ -4,22 +4,21 @@
     "name": "Shortcast",
     "languages": [
       "swift",
+      "markdown",
       "yaml",
       "json",
-      "xml",
-      "markdown"
+      "xml"
     ],
     "frameworks": [
-      "SwiftUI",
+      "Gemma4Swift",
       "MLX",
-      "AVFoundation",
-      "Vision",
       "WhisperKit",
-      "Gemma4Swift"
+      "AVFoundation",
+      "Vision"
     ],
-    "description": "macOS app that turns long videos into ready-to-post shorts for TikTok, Instagram Reels, and YouTube Shorts — fully on-device using on-device ML (Gemma 4, Qwen 3.5, WhisperKit)",
-    "analyzedAt": "2026-06-08T04:02:28Z",
-    "gitCommitHash": "58979b26ebebc246660027aae56f475cc87d36a2"
+    "description": "Long videos → ready-to-post shorts for TikTok, Instagram Reels and YouTube Shorts. Found, cut, captioned, reframed and scheduled — fully on your Mac.",
+    "analyzedAt": "2026-06-08T09:48:19.945Z",
+    "gitCommitHash": "7e0f513a1b7cd4a3f9b6371353a0dc4c65f72ab1"
   },
   "nodes": [
     {
@@ -37,6 +36,25 @@
       "complexity": "simple"
     },
     {
+      "id": "file:Shortcast/Info.plist",
+      "type": "config",
+      "name": "Info.plist",
+      "filePath": "Shortcast/Info.plist",
+      "summary": "macOS app bundle metadata: bundle ID, version, deployment target, category",
+      "tags": [
+        "macos",
+        "bundle",
+        "config"
+      ],
+      "complexity": "simple",
+      "language": "xml",
+      "fileCategory": "config",
+      "sizeLines": 36,
+      "title": "App Info.plist — Bundle Configuration",
+      "languageNotes": "XML plist format. Uses Xcode build-setting variables ($(PRODUCT_NAME), $(MARKETING_VERSION), etc.).",
+      "symbols": []
+    },
+    {
       "id": "file:project.yml",
       "type": "config",
       "name": "project.yml",
@@ -48,20 +66,85 @@
         "xcodegen",
         "config"
       ],
-      "complexity": "simple"
+      "complexity": "moderate",
+      "language": "yaml",
+      "fileCategory": "config",
+      "sizeLines": 99,
+      "title": "XcodeGen Project Definition",
+      "languageNotes": "YAML. XcodeGen-specific syntax for packages, targets, dependencies, and settings. Gemma4Swift uses local path (Vendor/); others use remote URLs with version pins.",
+      "symbols": []
     },
     {
-      "id": "file:README.md",
-      "type": "document",
-      "name": "README.md",
-      "filePath": "README.md",
-      "summary": "Project overview: features, how it works (diagram), dependencies, setup, comparison to alternatives",
+      "id": "module:models",
+      "type": "module",
+      "name": "Models",
+      "summary": "Data model layer: pure structs and enums for video jobs, clips, posts, settings, and publishing reports",
       "tags": [
-        "docs",
-        "project",
-        "readme"
+        "swift",
+        "module",
+        "data"
       ],
-      "complexity": "simple"
+      "complexity": "moderate"
+    },
+    {
+      "id": "module:services",
+      "type": "module",
+      "name": "Services",
+      "summary": "Business logic layer: ML inference, media processing, parsing, publishing, and state management",
+      "tags": [
+        "swift",
+        "module",
+        "business-logic"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "module:views",
+      "type": "module",
+      "name": "Views",
+      "summary": "SwiftUI presentation layer: all macOS views for the two processing flows and settings",
+      "tags": [
+        "swift",
+        "module",
+        "ui"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "concept:multi-platform-publishing",
+      "type": "concept",
+      "name": "Multi-Platform Publishing",
+      "summary": "Protocol-based publishing abstraction supporting Upload-Post (all 3 platforms) and TikTok Official API, with per-platform content normalization",
+      "tags": [
+        "architecture",
+        "publishing",
+        "social"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "concept:on-device-ml",
+      "type": "concept",
+      "name": "On-Device ML Inference",
+      "summary": "Core architectural concept: all AI processing happens locally on the Mac using MLX, with Gemma 4 for multimodal captioning and Qwen 3.5 for transcript analysis",
+      "tags": [
+        "ml",
+        "architecture",
+        "privacy"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "concept:two-flow-pipeline",
+      "type": "concept",
+      "name": "Two-Flow Pipeline",
+      "summary": "The app supports two distinct processing flows: single-video captioning (drop short clip, get 3 platform posts) and long-video shorts (transcribe, find moments, cut, caption, reframe)",
+      "tags": [
+        "architecture",
+        "state-machine",
+        "pipeline"
+      ],
+      "complexity": "moderate"
     },
     {
       "id": "file:NOTICE",
@@ -73,20 +156,13 @@
         "docs",
         "legal"
       ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Info.plist",
-      "type": "config",
-      "name": "Info.plist",
-      "filePath": "Shortcast/Info.plist",
-      "summary": "macOS app bundle metadata: bundle ID, version, deployment target, category",
-      "tags": [
-        "macos",
-        "bundle",
-        "config"
-      ],
-      "complexity": "simple"
+      "complexity": "simple",
+      "language": "unknown",
+      "fileCategory": "code",
+      "sizeLines": 32,
+      "title": "NOTICE — Third-Party Attribution",
+      "languageNotes": "Plain text. Standard Apache 2.0 NOTICE format.",
+      "symbols": []
     },
     {
       "id": "file:Shortcast/Resources/social-content-coach.md",
@@ -100,21 +176,159 @@
         "prompt",
         "resource"
       ],
-      "complexity": "simple"
+      "complexity": "moderate",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 97,
+      "title": "Social Content Coach — AI Copywriting Prompt",
+      "languageNotes": "Markdown document used as a prompt template. Not code — loaded as a String at runtime via String(contentsOfFile:).",
+      "symbols": []
     },
     {
-      "id": "file:Shortcast/ShortcastApp.swift",
+      "id": "file:README.md",
       "type": "file",
-      "name": "ShortcastApp.swift",
-      "filePath": "Shortcast/ShortcastApp.swift",
-      "summary": "App entry point: initializes environment (settings, modelManager, workspace), sets window properties",
+      "path": "README.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 263,
+      "title": "Shortcast — Project README",
+      "summary": "Project overview documenting Shortcast, a macOS 15+ SwiftUI app that converts long videos into ready-to-post shorts for TikTok, Instagram Reels, and YouTube Shorts. Covers architecture (WhisperKit transcription → Director LLM → AVFoundation cutting → vertical reframe → publish via Upload-Post or TikTok official API), installation, build-from-source instructions with XcodeGen, model choices (Gemma 4 12B, Qwen 3.5 9B, Gemma 4 E4B), the full processing pipeline diagram, privacy guarantees, known limitations, and acknowledgements. Licensed Apache 2.0.",
       "tags": [
-        "swift",
-        "ui",
-        "app",
-        "entry-point"
+        "documentation",
+        "readme",
+        "architecture-overview",
+        "installation",
+        "pipeline",
+        "macos",
+        "swift"
       ],
-      "complexity": "simple"
+      "languageNotes": "Markdown with embedded ASCII diagrams, code blocks, and HTML badges.",
+      "complexity": "complex",
+      "name": "README.md"
+    },
+    {
+      "id": "file:docs/tiktok-official-publishing.md",
+      "type": "file",
+      "path": "docs/tiktok-official-publishing.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 223,
+      "title": "TikTok Official Publishing Integration",
+      "summary": "Technical design document for Shortcast's TikTok official Content Posting API integration. Documents the current manual-token flow (inbox upload via video.upload scope and direct post via video.publish scope), the app settings stored in AppSettings (client key, secret, access token, publish mode, privacy, duet/stitch/comment toggles, AIGC label), the publish behavior (single-chunk upload, inbox vs direct post initialization payloads), known limitations (no OAuth, no refresh tokens, no scheduling for TikTok official), next integration steps (OAuth callback, token refresh, creator-info query, chunked upload), and the PublishingProvider extension pattern for future providers.",
+      "tags": [
+        "documentation",
+        "tiktok",
+        "api-integration",
+        "oauth",
+        "content-posting",
+        "publishing",
+        "provider-pattern"
+      ],
+      "languageNotes": "Markdown with Swift code snippets showing the PublishingProvider protocol pattern and JSON API payloads.",
+      "complexity": "complex",
+      "name": "docs/tiktok-official-publishing.md"
+    },
+    {
+      "id": "file:docs/youtube-instagram-publishing-ideas.md",
+      "type": "file",
+      "path": "docs/youtube-instagram-publishing-ideas.md",
+      "language": "markdown",
+      "fileCategory": "docs",
+      "sizeLines": 542,
+      "title": "YouTube & Instagram Official Publishing — Implementation Ideas",
+      "summary": "Detailed implementation plan for adding YouTube Data API v3 and Instagram Graph API official publishing providers. Covers the provider-per-platform architecture pattern (vs unified Upload-Post), YouTube resumable upload protocol with chunked upload strategy, Instagram two-step container creation + publish with resumable upload for the hosting challenge, authentication flows (manual token vs in-app OAuth via ASWebAuthenticationSession), Shorts/Reels detection logic, per-platform settings design (YouTube: client key/secret/access/refresh tokens/channel ID; Instagram: access token/user ID/page ID), a unified settings UI with per-platform provider selection, an implementation roadmap (Phase 1 YouTube week 1-2, Phase 2 Instagram week 3-4, Phase 3 multi-provider mix week 5), and key challenges (Instagram video hosting, OAuth token management, rate limits, scheduling complexity, error handling).",
+      "tags": [
+        "documentation",
+        "implementation-plan",
+        "youtube",
+        "instagram",
+        "api-integration",
+        "oauth",
+        "resumable-upload",
+        "provider-pattern",
+        "roadmap"
+      ],
+      "languageNotes": "Markdown with Swift sketches, ASCII diagrams, API specifications, and phased implementation roadmap.",
+      "complexity": "complex",
+      "name": "docs/youtube-instagram-publishing-ideas.md"
+    },
+    {
+      "id": "file:.understand-anything/.understandignore",
+      "type": "file",
+      "path": ".understand-anything/.understandignore",
+      "language": "unknown",
+      "fileCategory": "code",
+      "sizeLines": 30,
+      "title": ".understandignore — Analysis Exclusion Rules",
+      "summary": "Gitignore-style exclusion file for the understand-anything analysis tool. Excludes DerivedData, .build, xcodeproj/xcuserdata, xcworkspace/xcuserdata, xcuserstate, moved-aside files, .dmg, .swiftpm, Package.resolved, .claude, and .DS_Store. Uncommented patterns from .gitignore and detected directories. Built-in defaults (node_modules, .git, dist, build, obj, etc.) are always excluded.",
+      "tags": [
+        "config",
+        "ignore-patterns",
+        "analysis-config"
+      ],
+      "languageNotes": "Plain text with gitignore-style syntax (# comments, globs, trailing / for dirs).",
+      "symbols": [],
+      "complexity": "simple",
+      "name": ".understand-anything/.understandignore"
+    },
+    {
+      "id": "file:Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "type": "file",
+      "path": "Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 12,
+      "title": "AccentColor — App Accent Color Definition",
+      "summary": "Xcode asset catalog color set defining the app's universal accent color as a bright red (sRGB: 0.353, 0.353, 0.957 — approximately #5B5BF3 blue-ish, though the red component is listed first). Applied as the system accent color for the app.",
+      "tags": [
+        "assets",
+        "color",
+        "accent",
+        "ui-theme"
+      ],
+      "languageNotes": "JSON. Xcode asset catalog format with sRGB color space and components.",
+      "symbols": [],
+      "complexity": "simple",
+      "name": "Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json"
+    },
+    {
+      "id": "file:Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "type": "file",
+      "path": "Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 15,
+      "title": "AppIcon — App Icon Asset Catalog",
+      "summary": "Xcode asset catalog icon set definition for the Mac app icon. Declares 10 image slots for all required macOS icon sizes (16x16, 32x32, 128x128, 256x256, 512x512 at 1x and 2x scales). No actual image files are referenced yet — slots are placeholders waiting for icon artwork.",
+      "tags": [
+        "assets",
+        "icon",
+        "app-icon",
+        "macos"
+      ],
+      "languageNotes": "JSON. Xcode asset catalog image set format. All slots use 'mac' idiom.",
+      "symbols": [],
+      "complexity": "simple",
+      "name": "Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json"
+    },
+    {
+      "id": "file:Shortcast/Assets.xcassets/Contents.json",
+      "type": "file",
+      "path": "Shortcast/Assets.xcassets/Contents.json",
+      "language": "json",
+      "fileCategory": "config",
+      "sizeLines": 6,
+      "title": "Assets.xcassets — Root Asset Catalog Metadata",
+      "summary": "Root metadata file for the Xcode asset catalog. Declares author as 'xcode' and version 1. This is the top-level Contents.json that makes the directory a valid .xcassets bundle.",
+      "tags": [
+        "assets",
+        "metadata",
+        "xcassets"
+      ],
+      "languageNotes": "JSON. Minimal Xcode asset catalog root descriptor.",
+      "symbols": [],
+      "complexity": "simple",
+      "name": "Shortcast/Assets.xcassets/Contents.json"
     },
     {
       "id": "file:Shortcast/Models/AppSettings.swift",
@@ -128,87 +342,42 @@
         "settings",
         "observable"
       ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Models/VideoJob.swift",
-      "type": "file",
-      "name": "VideoJob.swift",
-      "filePath": "Shortcast/Models/VideoJob.swift",
-      "summary": "Metadata for a dropped video (URL, duration); used throughout the processing pipeline",
-      "tags": [
-        "swift",
-        "model",
-        "data"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Models/ClipCandidate.swift",
-      "type": "file",
-      "name": "ClipCandidate.swift",
-      "filePath": "Shortcast/Models/ClipCandidate.swift",
-      "summary": "One viral moment picked by Director: start/end timestamps, rationale, hook text, overlay text",
-      "tags": [
-        "swift",
-        "model",
-        "data"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Models/PostVariant.swift",
-      "type": "file",
-      "name": "PostVariant.swift",
-      "filePath": "Shortcast/Models/PostVariant.swift",
-      "summary": "Platform-specific post (TikTok, Instagram, YouTube) with hook, description, hashtags; also GenerationResult wrapper",
-      "tags": [
-        "swift",
-        "model",
-        "data",
-        "social"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Models/PublishReport.swift",
-      "type": "file",
-      "name": "PublishReport.swift",
-      "filePath": "Shortcast/Models/PublishReport.swift",
-      "summary": "Result of a publish operation: provider, platform outcomes, request ID",
-      "tags": [
-        "swift",
-        "model",
-        "data",
-        "publishing"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Models/ShortClip.swift",
-      "type": "file",
-      "name": "ShortClip.swift",
-      "filePath": "Shortcast/Models/ShortClip.swift",
-      "summary": "One generated short in progress: candidate + cut clip + editable captions + publish state; observable per-card",
-      "tags": [
-        "swift",
-        "model",
-        "observable"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Models/String+Trimmed.swift",
-      "type": "file",
-      "name": "String+Trimmed.swift",
-      "filePath": "Shortcast/Models/String+Trimmed.swift",
-      "summary": "String utility extension: whitespace/newline trimming",
-      "tags": [
-        "swift",
-        "utility",
-        "extension"
-      ],
-      "complexity": "simple"
+      "complexity": "complex",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 326,
+      "title": "AppSettings — Centralized User Configuration",
+      "languageNotes": "Swift 6 @Observable @MainActor. Uses UserDefaults with custom Keys enum. didSet observers trigger persistence. API key previously stored in Keychain, now migrated to UserDefaults to avoid code-signing re-prompting on dev rebuilds.",
+      "symbols": [
+        {
+          "name": "AppSettings",
+          "kind": "class",
+          "summary": "Central @Observable settings class — stores all user preferences (API keys, publishing config, content style, processing defaults) in UserDefaults with automatic persistence via didSet observers.",
+          "lineStart": 19,
+          "lineEnd": 326
+        },
+        {
+          "name": "CopywriterModel",
+          "kind": "enum",
+          "summary": "Enum of available AI caption writers: Gemma 4 12B (default Director + inline captions), Qwen 3.5 9B (lighter Director + inline captions), Gemma 4 E4B (multimodal clip-watcher, separate pass), MiMo (remote API, local video processing).",
+          "lineStart": 22,
+          "lineEnd": 78
+        },
+        {
+          "name": "TikTokPublishMode",
+          "kind": "enum",
+          "summary": "TikTok publishing mode: inboxUpload (video.upload scope, draft in TikTok) or directPost (video.publish scope, publish directly with privacy settings).",
+          "lineStart": 80,
+          "lineEnd": 96
+        },
+        {
+          "name": "isConfigured",
+          "kind": "computed-property",
+          "summary": "Returns true when the app has sufficient credentials for the active publishing provider (UploadPost needs API key + profile name; TikTokOfficial needs access token).",
+          "lineStart": 245,
+          "lineEnd": 250
+        }
+      ]
     },
     {
       "id": "file:Shortcast/Services/ChatModelProfile.swift",
@@ -221,6 +390,294 @@
         "config",
         "ml",
         "service"
+      ],
+      "complexity": "moderate",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 92,
+      "title": "ChatModelProfile — MLX Model Configuration",
+      "languageNotes": "Swift structs. SamplingConfig is a plain value type. ChatModelProfile uses enum for FactoryKind and Loader. Extensive comments explain why each parameter was chosen.",
+      "symbols": [
+        {
+          "name": "SamplingConfig",
+          "kind": "struct",
+          "summary": "Per-model decoding parameters — temperature, topP, topK, minP, repetition penalty, max tokens, KV cache bounds, and KV quantization.",
+          "lineStart": 12,
+          "lineEnd": 23
+        },
+        {
+          "name": "ChatModelProfile",
+          "kind": "struct",
+          "summary": "Bundles HuggingFace model ID, factory kind, loader type, and vendor-recommended sampling config for an MLX model.",
+          "lineStart": 25,
+          "lineEnd": 92
+        },
+        {
+          "name": "ChatModelProfile.qwen35_9b",
+          "kind": "static-property",
+          "summary": "Static profile for Qwen 3.5 9B — VLM loader, temp 0.7, topP 0.8, topK 20, KV 40960 tokens at 8-bit quantization.",
+          "lineStart": 57,
+          "lineEnd": 68
+        },
+        {
+          "name": "ChatModelProfile.gemma12B",
+          "kind": "static-property",
+          "summary": "Static profile for Gemma 4 12B — gemma4Text loader, temp 0.35, topP 0.9, topK 30, repetition penalty 1.1, unquantized KV (512 head dim overflow).",
+          "lineStart": 74,
+          "lineEnd": 92
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Models/ClipCandidate.swift",
+      "type": "file",
+      "name": "ClipCandidate.swift",
+      "filePath": "Shortcast/Models/ClipCandidate.swift",
+      "summary": "One viral moment picked by Director: start/end timestamps, rationale, hook text, overlay text",
+      "tags": [
+        "swift",
+        "model",
+        "data"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 34,
+      "title": "ClipCandidate — Viral Moment Selection",
+      "languageNotes": "Swift struct conforming to Sendable, Identifiable, Equatable. UUID-based id. Duration computed from start/end.",
+      "symbols": [
+        {
+          "name": "ClipCandidate",
+          "kind": "struct",
+          "summary": "Value type for a Director-selected viral moment — time range, rationale, hook, overlay, and optional inline PostVariant captions.",
+          "lineStart": 6,
+          "lineEnd": 34
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Views/Color+Hex.swift",
+      "type": "file",
+      "name": "Color+Hex.swift",
+      "filePath": "Shortcast/Views/Color+Hex.swift",
+      "summary": "Hex color parser extension + platform tint color helper",
+      "tags": [
+        "swift",
+        "ui",
+        "utility"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:Shortcast/Views/ContentView.swift",
+      "type": "file",
+      "name": "ContentView.swift",
+      "filePath": "Shortcast/Views/ContentView.swift",
+      "summary": "Root state machine view: gates on model readiness, routes through phases (empty, drop, processing, results)",
+      "tags": [
+        "swift",
+        "ui",
+        "view",
+        "navigation"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/DropZoneView.swift",
+      "type": "file",
+      "name": "DropZoneView.swift",
+      "filePath": "Shortcast/Views/DropZoneView.swift",
+      "summary": "Idle screen: mode picker (caption short vs. make shorts), drag-and-drop target, file importer",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:Shortcast/Services/GemmaService.swift",
+      "type": "file",
+      "name": "GemmaService.swift",
+      "filePath": "Shortcast/Services/GemmaService.swift",
+      "summary": "Multimodal generation orchestrator: extract audio, build prompt, run Gemma 4, parse result",
+      "tags": [
+        "swift",
+        "service",
+        "ml",
+        "multimodal"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 30,
+      "title": "GemmaService — End-to-End Generation Orchestrator",
+      "languageNotes": "Swift enum (caseless) used as a namespace. Static async function with @Sendable token callback for streaming.",
+      "symbols": [
+        {
+          "name": "GemmaService.generate(job:engine:languageOverride:styleExamples:onToken:)",
+          "kind": "static-method",
+          "summary": "Full generation pipeline: extract audio → build prompt → run Gemma 4 E4B multimodal → parse JSON into GenerationResult.",
+          "lineStart": 11,
+          "lineEnd": 29
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Services/JSONVariantParser.swift",
+      "type": "file",
+      "name": "JSONVariantParser.swift",
+      "filePath": "Shortcast/Services/JSONVariantParser.swift",
+      "summary": "Tolerant JSON parser for model output: repairs drift, extracts balanced objects, maps to PostVariant",
+      "tags": [
+        "swift",
+        "parser",
+        "service"
+      ],
+      "complexity": "complex",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 176,
+      "title": "JSONVariantParser — Tolerant Model Output Parser",
+      "languageNotes": "Swift enum namespace. Uses NSRegularExpression for regex replacements. JSONSerialization for parsing. Manual brace-depth counting for extractJSONObject.",
+      "symbols": [
+        {
+          "name": "JSONVariantParser.parse(_:)",
+          "kind": "static-method",
+          "summary": "Parses raw model output string into GenerationResult, tolerating fences/thinking/glitches.",
+          "lineStart": 14,
+          "lineEnd": 19
+        },
+        {
+          "name": "JSONVariantParser.extractJSONObject(from:)",
+          "kind": "static-method",
+          "summary": "Finds and returns the first balanced {…} JSON block from raw text, skipping markdown fences and commentary.",
+          "lineStart": 116,
+          "lineEnd": 138
+        },
+        {
+          "name": "JSONVariantParser.repairDrift(_:)",
+          "kind": "static-method",
+          "summary": "Fixes common small-model JSON glitches: missing opening quotes on property names and trailing commas before } or ].",
+          "lineStart": 49,
+          "lineEnd": 54
+        },
+        {
+          "name": "JSONVariantParser.parse(object:)",
+          "kind": "static-method",
+          "summary": "Parses an already-deserialized JSON value (object or array) into GenerationResult, supporting both array-of-variants and object-keyed-by-platform formats.",
+          "lineStart": 72,
+          "lineEnd": 103
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Services/KeychainStore.swift",
+      "type": "file",
+      "name": "KeychainStore.swift",
+      "filePath": "Shortcast/Services/KeychainStore.swift",
+      "summary": "Minimal Keychain wrapper: read/write/delete generic passwords",
+      "tags": [
+        "swift",
+        "service",
+        "security"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 48,
+      "title": "KeychainStore — macOS Keychain Wrapper",
+      "languageNotes": "Swift enum namespace. Uses Security framework C API (SecItemAdd, SecItemCopyMatching, SecItemDelete). kSecAttrAccessibleAfterFirstUnlock allows access after device unlock.",
+      "symbols": [
+        {
+          "name": "KeychainStore.save(_:account:)",
+          "kind": "static-method",
+          "summary": "Saves a string value to the Keychain under the given account, replacing any existing entry.",
+          "lineStart": 10,
+          "lineEnd": 23
+        },
+        {
+          "name": "KeychainStore.read(account:)",
+          "kind": "static-method",
+          "summary": "Reads a string value from the Keychain for the given account, or returns nil if not found.",
+          "lineStart": 25,
+          "lineEnd": 37
+        },
+        {
+          "name": "KeychainStore.delete(account:)",
+          "kind": "static-method",
+          "summary": "Deletes the Keychain entry for the given account.",
+          "lineStart": 39,
+          "lineEnd": 48
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Services/MediaExtractor.swift",
+      "type": "file",
+      "name": "MediaExtractor.swift",
+      "filePath": "Shortcast/Services/MediaExtractor.swift",
+      "summary": "Video I/O: validate, extract audio track, cut clips (passthrough or re-encode fallback)",
+      "tags": [
+        "swift",
+        "service",
+        "av",
+        "media"
+      ],
+      "complexity": "moderate",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 104,
+      "title": "MediaExtractor — Video Validation & Audio/Clip Extraction",
+      "languageNotes": "Swift enum namespace. Uses AVFoundation's AVURLAsset, AVAssetExportSession. Async/await with try. CMTime with 600 preferredTimescale for sub-second precision.",
+      "symbols": [
+        {
+          "name": "MediaExtractor.makeJob(from:)",
+          "kind": "static-method",
+          "summary": "Validates a video file URL and creates a VideoJob with duration metadata.",
+          "lineStart": 27,
+          "lineEnd": 34
+        },
+        {
+          "name": "MediaExtractor.extractAudio(from:maxSeconds:)",
+          "kind": "static-method",
+          "summary": "Extracts the audio track from a video to a temporary .m4a file, optionally capping duration.",
+          "lineStart": 37,
+          "lineEnd": 65
+        },
+        {
+          "name": "MediaExtractor.cutClip(from:start:duration:)",
+          "kind": "static-method",
+          "summary": "Cuts a time range from a video to a temporary .mp4, preferring passthrough export then falling back to re-encode.",
+          "lineStart": 68,
+          "lineEnd": 104
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Services/MimoService.swift",
+      "type": "file",
+      "name": "MimoService.swift",
+      "filePath": "Shortcast/Services/MimoService.swift",
+      "summary": "Optional Xiaomi MiMo API client: remote LLM alternative to on-device models",
+      "tags": [
+        "swift",
+        "service",
+        "http",
+        "ml"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/ModelDownloadView.swift",
+      "type": "file",
+      "name": "ModelDownloadView.swift",
+      "filePath": "Shortcast/Views/ModelDownloadView.swift",
+      "summary": "First-run model download screen: progress bar, memory warning, retry on fail",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
       ],
       "complexity": "moderate"
     },
@@ -253,32 +710,85 @@
       "complexity": "complex"
     },
     {
-      "id": "file:Shortcast/Services/GemmaService.swift",
+      "id": "file:Shortcast/Views/PhoneVideoPlayer.swift",
       "type": "file",
-      "name": "GemmaService.swift",
-      "filePath": "Shortcast/Services/GemmaService.swift",
-      "summary": "Multimodal generation orchestrator: extract audio, build prompt, run Gemma 4, parse result",
+      "name": "PhoneVideoPlayer.swift",
+      "filePath": "Shortcast/Views/PhoneVideoPlayer.swift",
+      "summary": "NSViewRepresentable for silent looping video (no controls); used in previews and progress",
       "tags": [
         "swift",
-        "service",
-        "ml",
-        "multimodal"
+        "ui",
+        "view"
       ],
-      "complexity": "moderate"
+      "complexity": "simple"
     },
     {
-      "id": "file:Shortcast/Services/MediaExtractor.swift",
+      "id": "file:Shortcast/Views/PostPreviewCard.swift",
       "type": "file",
-      "name": "MediaExtractor.swift",
-      "filePath": "Shortcast/Services/MediaExtractor.swift",
-      "summary": "Video I/O: validate, extract audio track, cut clips (passthrough or re-encode fallback)",
+      "name": "PostPreviewCard.swift",
+      "filePath": "Shortcast/Views/PostPreviewCard.swift",
+      "summary": "One platform's post preview: phone mockup with live video, platform chrome, editable text fields",
       "tags": [
         "swift",
-        "service",
-        "av",
-        "media"
+        "ui",
+        "view"
       ],
-      "complexity": "moderate"
+      "complexity": "complex"
+    },
+    {
+      "id": "file:Shortcast/Models/PostVariant.swift",
+      "type": "file",
+      "name": "PostVariant.swift",
+      "filePath": "Shortcast/Models/PostVariant.swift",
+      "summary": "Platform-specific post (TikTok, Instagram, YouTube) with hook, description, hashtags; also GenerationResult wrapper",
+      "tags": [
+        "swift",
+        "model",
+        "data",
+        "social"
+      ],
+      "complexity": "moderate",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 70,
+      "title": "PostVariant — Platform-Specific Post Content",
+      "languageNotes": "Three types: SocialPlatform (enum with String raw values), PostVariant (struct), GenerationResult (struct). All conform to Sendable. SocialPlatform uses enum-with-associated-values pattern for display properties.",
+      "symbols": [
+        {
+          "name": "SocialPlatform",
+          "kind": "enum",
+          "summary": "Enum of supported social platforms (tiktok, instagram, youtube) with display name, SF Symbol, and brand tint hex color.",
+          "lineStart": 5,
+          "lineEnd": 32
+        },
+        {
+          "name": "PostVariant",
+          "kind": "struct",
+          "summary": "One platform's proposed post — hook, summary, hashtags — edited in place by the user before publishing.",
+          "lineStart": 34,
+          "lineEnd": 53
+        },
+        {
+          "name": "GenerationResult",
+          "kind": "struct",
+          "summary": "Full result of one on-device generation pass — array of PostVariant values plus detected language.",
+          "lineStart": 55,
+          "lineEnd": 70
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Views/ProcessingView.swift",
+      "type": "file",
+      "name": "ProcessingView.swift",
+      "filePath": "Shortcast/Views/ProcessingView.swift",
+      "summary": "Single-video flow: pulsing phone frame, analyzing progress message, video metadata",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "simple"
     },
     {
       "id": "file:Shortcast/Services/PromptBuilder.swift",
@@ -295,17 +805,283 @@
       "complexity": "moderate"
     },
     {
-      "id": "file:Shortcast/Services/JSONVariantParser.swift",
+      "id": "file:Shortcast/Models/PublishReport.swift",
       "type": "file",
-      "name": "JSONVariantParser.swift",
-      "filePath": "Shortcast/Services/JSONVariantParser.swift",
-      "summary": "Tolerant JSON parser for model output: repairs drift, extracts balanced objects, maps to PostVariant",
+      "name": "PublishReport.swift",
+      "filePath": "Shortcast/Models/PublishReport.swift",
+      "summary": "Result of a publish operation: provider, platform outcomes, request ID",
       "tags": [
         "swift",
-        "parser",
-        "service"
+        "model",
+        "data",
+        "publishing"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 35,
+      "title": "PublishReport — Publishing Result Model",
+      "languageNotes": "Three types: PublishingProviderID (enum with String raw), PlatformOutcome (enum with associated values), PublishReport (struct). All Sendable.",
+      "symbols": [
+        {
+          "name": "PublishingProviderID",
+          "kind": "enum",
+          "summary": "Enum identifying the publishing backend: uploadPost (Upload-Post API) or tiktokOfficial (TikTok Content Posting API).",
+          "lineStart": 3,
+          "lineEnd": 19
+        },
+        {
+          "name": "PlatformOutcome",
+          "kind": "enum",
+          "summary": "Outcome of publishing to a single platform: success (optional URL), submitted, or failure (error message).",
+          "lineStart": 21,
+          "lineEnd": 25
+        },
+        {
+          "name": "PublishReport",
+          "kind": "struct",
+          "summary": "Complete publish result — provider ID, per-platform outcome map, optional request ID, and raw API response.",
+          "lineStart": 27,
+          "lineEnd": 35
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Views/PublishResultView.swift",
+      "type": "file",
+      "name": "PublishResultView.swift",
+      "filePath": "Shortcast/Views/PublishResultView.swift",
+      "summary": "Modal: publish result (success/failure per platform, request ID)",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "simple"
+    },
+    {
+      "id": "file:Shortcast/Services/PublishingProvider.swift",
+      "type": "file",
+      "name": "PublishingProvider.swift",
+      "filePath": "Shortcast/Services/PublishingProvider.swift",
+      "summary": "Protocol + factory for publishing backends (Upload-Post, TikTok official); UploadPostProvider implementation",
+      "tags": [
+        "swift",
+        "service",
+        "protocol",
+        "publishing"
       ],
       "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/ResultsView.swift",
+      "type": "file",
+      "name": "ResultsView.swift",
+      "filePath": "Shortcast/Views/ResultsView.swift",
+      "summary": "Single-video results: three editable platform cards in a scrollable row; Publish button + result sheet",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/ScheduleSheet.swift",
+      "type": "file",
+      "name": "ScheduleSheet.swift",
+      "filePath": "Shortcast/Views/ScheduleSheet.swift",
+      "summary": "Modal: schedule approved clips (start date, interval days, plan preview, success view)",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/SettingsView.swift",
+      "type": "file",
+      "name": "SettingsView.swift",
+      "filePath": "Shortcast/Views/SettingsView.swift",
+      "summary": "Configuration UI: Upload-Post, TikTok official, captions, MiMo, model status",
+      "tags": [
+        "swift",
+        "ui",
+        "view",
+        "settings"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:Shortcast/Models/ShortClip.swift",
+      "type": "file",
+      "name": "ShortClip.swift",
+      "filePath": "Shortcast/Models/ShortClip.swift",
+      "summary": "One generated short in progress: candidate + cut clip + editable captions + publish state; observable per-card",
+      "tags": [
+        "swift",
+        "model",
+        "observable"
+      ],
+      "complexity": "complex",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 165,
+      "title": "ShortClip — Observable Short Video Lifecycle",
+      "languageNotes": "Swift @Observable @MainActor class. Uses async/await for publish and export. VerticalReframer handles frame-level rendering. Per-clip publish state includes isPublishing, publishReport, publishError, scheduledDate.",
+      "symbols": [
+        {
+          "name": "ShortClip",
+          "kind": "class",
+          "summary": "Observable model for one short — tracks candidate, clip, variants, stage, approval, overlay/reframe toggles, and publish state. Handles publish and export flows.",
+          "lineStart": 9,
+          "lineEnd": 165
+        },
+        {
+          "name": "ShortClip.Stage",
+          "kind": "enum",
+          "summary": "Processing stage: pending, cutting, captioning, ready, or failed(error message).",
+          "lineStart": 27,
+          "lineEnd": 33
+        },
+        {
+          "name": "ShortClip.publish(settings:scheduledDate:)",
+          "kind": "method",
+          "summary": "Renders the clip (reframe + overlay), then publishes through the active PublishingProvider. Manages temporary file cleanup.",
+          "lineStart": 93,
+          "lineEnd": 126
+        },
+        {
+          "name": "ShortClip.export(to:)",
+          "kind": "method",
+          "summary": "Renders the publish-ready file and copies it to the user's chosen destination for download.",
+          "lineStart": 132,
+          "lineEnd": 148
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Views/ShortClipCard.swift",
+      "type": "file",
+      "name": "ShortClipCard.swift",
+      "filePath": "Shortcast/Views/ShortClipCard.swift",
+      "summary": "Full editor for one clip: moment rationale, cutting/captioning progress, reframe toggle, overlay text editor, platform previews, per-clip publish",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:Shortcast/Views/ShortClipTile.swift",
+      "type": "file",
+      "name": "ShortClipTile.swift",
+      "filePath": "Shortcast/Views/ShortClipTile.swift",
+      "summary": "Compact grid card per clip: phone preview, duration badge, approve toggle, play/edit/download actions",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "complex"
+    },
+    {
+      "id": "file:Shortcast/ShortcastApp.swift",
+      "type": "file",
+      "name": "ShortcastApp.swift",
+      "filePath": "Shortcast/ShortcastApp.swift",
+      "summary": "App entry point: initializes environment (settings, modelManager, workspace), sets window properties",
+      "tags": [
+        "swift",
+        "ui",
+        "app",
+        "entry-point"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 33,
+      "title": "ShortcastApp — SwiftUI Application Entry Point",
+      "languageNotes": "Swift 6 with @Observable pattern. Uses .environment() for dependency injection. Single-window design with CommandGroup replacing .newItem.",
+      "symbols": [
+        {
+          "name": "ShortcastApp",
+          "kind": "struct",
+          "summary": "Main SwiftUI App struct — bootstraps the application with environment-injected state (AppSettings, ModelManager, WorkspaceModel) and configures the primary WindowGroup plus Settings scene.",
+          "lineStart": 4,
+          "lineEnd": 32
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Views/ShortsProgressView.swift",
+      "type": "file",
+      "name": "ShortsProgressView.swift",
+      "filePath": "Shortcast/Views/ShortsProgressView.swift",
+      "summary": "Long-video flow: cinematic scanner (16:9 frame with sweeping visual), filmstrip progress, headline/detail",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Views/ShortsResultsView.swift",
+      "type": "file",
+      "name": "ShortsResultsView.swift",
+      "filePath": "Shortcast/Views/ShortsResultsView.swift",
+      "summary": "Long-video results: grid of short tiles (adaptive 190-240px), schedule button, publish all",
+      "tags": [
+        "swift",
+        "ui",
+        "view"
+      ],
+      "complexity": "moderate"
+    },
+    {
+      "id": "file:Shortcast/Models/String+Trimmed.swift",
+      "type": "file",
+      "name": "String+Trimmed.swift",
+      "filePath": "Shortcast/Models/String+Trimmed.swift",
+      "summary": "String utility extension: whitespace/newline trimming",
+      "tags": [
+        "swift",
+        "utility",
+        "extension"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 6,
+      "title": "String+Trimmed — Whitespace Trim Extension",
+      "languageNotes": "Single-line extension on String. Uses CharacterSet.whitespacesAndNewlines.",
+      "symbols": [
+        {
+          "name": "String.trimmed",
+          "kind": "computed-property",
+          "summary": "Returns a copy of the string with leading/trailing whitespace and newlines removed.",
+          "lineStart": 4,
+          "lineEnd": 5
+        }
+      ]
+    },
+    {
+      "id": "file:Shortcast/Services/TikTokOfficialProvider.swift",
+      "type": "file",
+      "name": "TikTokOfficialProvider.swift",
+      "filePath": "Shortcast/Services/TikTokOfficialProvider.swift",
+      "summary": "TikTok official API: inbox upload or direct post; handles video chunking and metadata",
+      "tags": [
+        "swift",
+        "service",
+        "http",
+        "publishing",
+        "tiktok"
+      ],
+      "complexity": "complex"
     },
     {
       "id": "file:Shortcast/Services/TranscriptionService.swift",
@@ -322,6 +1098,20 @@
       "complexity": "moderate"
     },
     {
+      "id": "file:Shortcast/Services/UploadPostClient.swift",
+      "type": "file",
+      "name": "UploadPostClient.swift",
+      "filePath": "Shortcast/Services/UploadPostClient.swift",
+      "summary": "HTTP client for Upload-Post REST API: multipart form, all three platforms in one request",
+      "tags": [
+        "swift",
+        "service",
+        "http",
+        "publishing"
+      ],
+      "complexity": "moderate"
+    },
+    {
       "id": "file:Shortcast/Services/VerticalReframer.swift",
       "type": "file",
       "name": "VerticalReframer.swift",
@@ -334,6 +1124,33 @@
         "vision"
       ],
       "complexity": "complex"
+    },
+    {
+      "id": "file:Shortcast/Models/VideoJob.swift",
+      "type": "file",
+      "name": "VideoJob.swift",
+      "filePath": "Shortcast/Models/VideoJob.swift",
+      "summary": "Metadata for a dropped video (URL, duration); used throughout the processing pipeline",
+      "tags": [
+        "swift",
+        "model",
+        "data"
+      ],
+      "complexity": "simple",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 21,
+      "title": "VideoJob — Video File Metadata",
+      "languageNotes": "Swift struct conforming to Identifiable, Sendable, Equatable. UUID-based id.",
+      "symbols": [
+        {
+          "name": "VideoJob",
+          "kind": "struct",
+          "summary": "Value type for a video file being processed — URL, duration, filename, and recommended-length check.",
+          "lineStart": 5,
+          "lineEnd": 21
+        }
+      ]
     },
     {
       "id": "file:Shortcast/Services/VideoOverlayRenderer.swift",
@@ -364,273 +1181,6 @@
       "complexity": "complex"
     },
     {
-      "id": "file:Shortcast/Services/PublishingProvider.swift",
-      "type": "file",
-      "name": "PublishingProvider.swift",
-      "filePath": "Shortcast/Services/PublishingProvider.swift",
-      "summary": "Protocol + factory for publishing backends (Upload-Post, TikTok official); UploadPostProvider implementation",
-      "tags": [
-        "swift",
-        "service",
-        "protocol",
-        "publishing"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Services/UploadPostClient.swift",
-      "type": "file",
-      "name": "UploadPostClient.swift",
-      "filePath": "Shortcast/Services/UploadPostClient.swift",
-      "summary": "HTTP client for Upload-Post REST API: multipart form, all three platforms in one request",
-      "tags": [
-        "swift",
-        "service",
-        "http",
-        "publishing"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Services/TikTokOfficialProvider.swift",
-      "type": "file",
-      "name": "TikTokOfficialProvider.swift",
-      "filePath": "Shortcast/Services/TikTokOfficialProvider.swift",
-      "summary": "TikTok official API: inbox upload or direct post; handles video chunking and metadata",
-      "tags": [
-        "swift",
-        "service",
-        "http",
-        "publishing",
-        "tiktok"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Services/MimoService.swift",
-      "type": "file",
-      "name": "MimoService.swift",
-      "filePath": "Shortcast/Services/MimoService.swift",
-      "summary": "Optional Xiaomi MiMo API client: remote LLM alternative to on-device models",
-      "tags": [
-        "swift",
-        "service",
-        "http",
-        "ml"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Services/KeychainStore.swift",
-      "type": "file",
-      "name": "KeychainStore.swift",
-      "filePath": "Shortcast/Services/KeychainStore.swift",
-      "summary": "Minimal Keychain wrapper: read/write/delete generic passwords",
-      "tags": [
-        "swift",
-        "service",
-        "security"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Views/ContentView.swift",
-      "type": "file",
-      "name": "ContentView.swift",
-      "filePath": "Shortcast/Views/ContentView.swift",
-      "summary": "Root state machine view: gates on model readiness, routes through phases (empty, drop, processing, results)",
-      "tags": [
-        "swift",
-        "ui",
-        "view",
-        "navigation"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/DropZoneView.swift",
-      "type": "file",
-      "name": "DropZoneView.swift",
-      "filePath": "Shortcast/Views/DropZoneView.swift",
-      "summary": "Idle screen: mode picker (caption short vs. make shorts), drag-and-drop target, file importer",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Views/ModelDownloadView.swift",
-      "type": "file",
-      "name": "ModelDownloadView.swift",
-      "filePath": "Shortcast/Views/ModelDownloadView.swift",
-      "summary": "First-run model download screen: progress bar, memory warning, retry on fail",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/ProcessingView.swift",
-      "type": "file",
-      "name": "ProcessingView.swift",
-      "filePath": "Shortcast/Views/ProcessingView.swift",
-      "summary": "Single-video flow: pulsing phone frame, analyzing progress message, video metadata",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Views/ResultsView.swift",
-      "type": "file",
-      "name": "ResultsView.swift",
-      "filePath": "Shortcast/Views/ResultsView.swift",
-      "summary": "Single-video results: three editable platform cards in a scrollable row; Publish button + result sheet",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/PostPreviewCard.swift",
-      "type": "file",
-      "name": "PostPreviewCard.swift",
-      "filePath": "Shortcast/Views/PostPreviewCard.swift",
-      "summary": "One platform's post preview: phone mockup with live video, platform chrome, editable text fields",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Views/PhoneVideoPlayer.swift",
-      "type": "file",
-      "name": "PhoneVideoPlayer.swift",
-      "filePath": "Shortcast/Views/PhoneVideoPlayer.swift",
-      "summary": "NSViewRepresentable for silent looping video (no controls); used in previews and progress",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Views/ShortsProgressView.swift",
-      "type": "file",
-      "name": "ShortsProgressView.swift",
-      "filePath": "Shortcast/Views/ShortsProgressView.swift",
-      "summary": "Long-video flow: cinematic scanner (16:9 frame with sweeping visual), filmstrip progress, headline/detail",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/ShortsResultsView.swift",
-      "type": "file",
-      "name": "ShortsResultsView.swift",
-      "filePath": "Shortcast/Views/ShortsResultsView.swift",
-      "summary": "Long-video results: grid of short tiles (adaptive 190-240px), schedule button, publish all",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/ShortClipTile.swift",
-      "type": "file",
-      "name": "ShortClipTile.swift",
-      "filePath": "Shortcast/Views/ShortClipTile.swift",
-      "summary": "Compact grid card per clip: phone preview, duration badge, approve toggle, play/edit/download actions",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Views/ShortClipCard.swift",
-      "type": "file",
-      "name": "ShortClipCard.swift",
-      "filePath": "Shortcast/Views/ShortClipCard.swift",
-      "summary": "Full editor for one clip: moment rationale, cutting/captioning progress, reframe toggle, overlay text editor, platform previews, per-clip publish",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Views/PublishResultView.swift",
-      "type": "file",
-      "name": "PublishResultView.swift",
-      "filePath": "Shortcast/Views/PublishResultView.swift",
-      "summary": "Modal: publish result (success/failure per platform, request ID)",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "simple"
-    },
-    {
-      "id": "file:Shortcast/Views/ScheduleSheet.swift",
-      "type": "file",
-      "name": "ScheduleSheet.swift",
-      "filePath": "Shortcast/Views/ScheduleSheet.swift",
-      "summary": "Modal: schedule approved clips (start date, interval days, plan preview, success view)",
-      "tags": [
-        "swift",
-        "ui",
-        "view"
-      ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "file:Shortcast/Views/SettingsView.swift",
-      "type": "file",
-      "name": "SettingsView.swift",
-      "filePath": "Shortcast/Views/SettingsView.swift",
-      "summary": "Configuration UI: Upload-Post, TikTok official, captions, MiMo, model status",
-      "tags": [
-        "swift",
-        "ui",
-        "view",
-        "settings"
-      ],
-      "complexity": "complex"
-    },
-    {
-      "id": "file:Shortcast/Views/Color+Hex.swift",
-      "type": "file",
-      "name": "Color+Hex.swift",
-      "filePath": "Shortcast/Views/Color+Hex.swift",
-      "summary": "Hex color parser extension + platform tint color helper",
-      "tags": [
-        "swift",
-        "ui",
-        "utility"
-      ],
-      "complexity": "simple"
-    },
-    {
       "id": "file:Probe/main.swift",
       "type": "file",
       "name": "probe main.swift",
@@ -641,72 +1191,20 @@
         "dev-tool",
         "cli"
       ],
-      "complexity": "moderate"
-    },
-    {
-      "id": "module:models",
-      "type": "module",
-      "name": "Models",
-      "summary": "Data model layer: pure structs and enums for video jobs, clips, posts, settings, and publishing reports",
-      "tags": [
-        "swift",
-        "module",
-        "data"
-      ]
-    },
-    {
-      "id": "module:services",
-      "type": "module",
-      "name": "Services",
-      "summary": "Business logic layer: ML inference, media processing, parsing, publishing, and state management",
-      "tags": [
-        "swift",
-        "module",
-        "business-logic"
-      ]
-    },
-    {
-      "id": "module:views",
-      "type": "module",
-      "name": "Views",
-      "summary": "SwiftUI presentation layer: all macOS views for the two processing flows and settings",
-      "tags": [
-        "swift",
-        "module",
-        "ui"
-      ]
-    },
-    {
-      "id": "concept:on-device-ml",
-      "type": "concept",
-      "name": "On-Device ML Inference",
-      "summary": "Core architectural concept: all AI processing happens locally on the Mac using MLX, with Gemma 4 for multimodal captioning and Qwen 3.5 for transcript analysis",
-      "tags": [
-        "ml",
-        "architecture",
-        "privacy"
-      ]
-    },
-    {
-      "id": "concept:two-flow-pipeline",
-      "type": "concept",
-      "name": "Two-Flow Pipeline",
-      "summary": "The app supports two distinct processing flows: single-video captioning (drop short clip, get 3 platform posts) and long-video shorts (transcribe, find moments, cut, caption, reframe)",
-      "tags": [
-        "architecture",
-        "state-machine",
-        "pipeline"
-      ]
-    },
-    {
-      "id": "concept:multi-platform-publishing",
-      "type": "concept",
-      "name": "Multi-Platform Publishing",
-      "summary": "Protocol-based publishing abstraction supporting Upload-Post (all 3 platforms) and TikTok Official API, with per-platform content normalization",
-      "tags": [
-        "architecture",
-        "publishing",
-        "social"
+      "complexity": "moderate",
+      "language": "swift",
+      "fileCategory": "code",
+      "sizeLines": 67,
+      "title": "shortcast-probe — CLI Generation Pipeline Test",
+      "languageNotes": "Swift script with top-level code. Uses Gemma4Swift import. CommandLine.arguments for input. Note: this is the app entry point for the shortcast-probe target, NOT shipped in the app.",
+      "symbols": [
+        {
+          "name": "note(_:_:)",
+          "kind": "function",
+          "summary": "Writes a progress message to stderr.",
+          "lineStart": 17,
+          "lineEnd": 19
+        }
       ]
     }
   ],
@@ -716,1078 +1214,1266 @@
       "target": "file:Shortcast/Views/ContentView.swift",
       "type": "contains",
       "description": "App entry point contains ContentView as root view",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/ShortcastApp.swift",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "imports",
       "description": "App creates and provides AppSettings to environment",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/ShortcastApp.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "App creates and provides ModelManager to environment",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/ShortcastApp.swift",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "imports",
       "description": "App creates and provides WorkspaceModel to environment",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "imports",
       "description": "ContentView observes WorkspaceModel state machine for navigation",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "ContentView checks modelManager.isReady for gating",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/DropZoneView.swift",
       "type": "calls",
       "description": "Routes to DropZoneView when model is ready and no active job",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/ModelDownloadView.swift",
       "type": "calls",
       "description": "Routes to ModelDownloadView when model is not ready",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/ProcessingView.swift",
       "type": "calls",
       "description": "Routes to ProcessingView during single-video processing",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/ResultsView.swift",
       "type": "calls",
       "description": "Routes to ResultsView when single-video processing completes",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/ShortsProgressView.swift",
       "type": "calls",
       "description": "Routes to ShortsProgressView during long-video processing",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ContentView.swift",
       "target": "file:Shortcast/Views/ShortsResultsView.swift",
       "type": "calls",
       "description": "Routes to ShortsResultsView when long-video processing completes",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/DropZoneView.swift",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "calls",
       "description": "Calls workspace.process(url:) when user drops a video",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ResultsView.swift",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "imports",
       "description": "Observes workspace variants and publishReport; calls publish()",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ResultsView.swift",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "imports",
       "description": "Checks publishingProvider, tiktokAsDraft, isConfigured",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ResultsView.swift",
       "target": "file:Shortcast/Views/PostPreviewCard.swift",
       "type": "calls",
       "description": "Creates PostPreviewCard for each platform variant",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ResultsView.swift",
       "target": "file:Shortcast/Views/PublishResultView.swift",
       "type": "calls",
       "description": "Shows PublishResultView as sheet after publishing",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/PostPreviewCard.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Binds to PostVariant for live editing of hook/description/hashtags",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/PostPreviewCard.swift",
       "target": "file:Shortcast/Views/PhoneVideoPlayer.swift",
       "type": "calls",
       "description": "Embeds PhoneVideoPlayer for live video preview in phone mockup",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/PostPreviewCard.swift",
       "target": "file:Shortcast/Views/Color+Hex.swift",
       "type": "imports",
       "description": "Uses SocialPlatform.tint for platform-specific coloring",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortsResultsView.swift",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "imports",
       "description": "Observes workspace clips for grid display; triggers publish all",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortsResultsView.swift",
       "target": "file:Shortcast/Views/ShortClipTile.swift",
       "type": "calls",
       "description": "Creates ShortClipTile for each clip in the results grid",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortsResultsView.swift",
       "target": "file:Shortcast/Views/ScheduleSheet.swift",
       "type": "calls",
       "description": "Shows ScheduleSheet when user taps schedule button",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortClipTile.swift",
       "target": "file:Shortcast/Models/ShortClip.swift",
       "type": "imports",
       "description": "Observes ShortClip for progress, approve toggle, and actions",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortClipTile.swift",
       "target": "file:Shortcast/Views/ShortClipCard.swift",
       "type": "calls",
       "description": "Opens ShortClipCard as sheet for full clip editing",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortClipCard.swift",
       "target": "file:Shortcast/Models/ShortClip.swift",
       "type": "imports",
       "description": "Full editor binding: edits reframe, overlay, captions on ShortClip",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortClipCard.swift",
       "target": "file:Shortcast/Views/PostPreviewCard.swift",
       "type": "calls",
       "description": "Embeds PostPreviewCard for each platform within the clip editor",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ShortClipCard.swift",
       "target": "file:Shortcast/Views/PublishResultView.swift",
       "type": "calls",
       "description": "Shows per-clip publish result",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/SettingsView.swift",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "imports",
       "description": "User edits all settings through SettingsView bindings",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/SettingsView.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "Observes modelManager for model status display",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Views/ModelDownloadView.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "Observes download progress and triggers retry",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/MediaExtractor.swift",
       "type": "calls",
       "description": "Validates video input, extracts audio, cuts clips",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/TranscriptionService.swift",
       "type": "calls",
       "description": "Transcribes long video for moment finding",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/MomentFinderService.swift",
       "type": "calls",
       "description": "Director finds viral moments and optional captions from transcript",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "Prepares Gemma E4B engine and Director model",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/GemmaService.swift",
       "type": "calls",
       "description": "Multimodal captioning: video + audio to JSON",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/VerticalReframer.swift",
       "type": "calls",
       "description": "Reframes clips to vertical, detects landscape mode",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Services/PublishingProvider.swift",
       "type": "calls",
       "description": "Publishes shorts via selected backend provider",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/VideoJob.swift",
       "type": "imports",
       "description": "Creates VideoJob from dropped URL, manages job lifecycle",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/ClipCandidate.swift",
       "type": "imports",
       "description": "Uses ClipCandidate from moment finding results",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Manages PostVariant array for generation results",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/ShortClip.swift",
       "type": "imports",
       "description": "Creates and manages ShortClip instances for each moment",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/PublishReport.swift",
       "type": "imports",
       "description": "Collects PublishReport from publishing operations",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/WorkspaceModel.swift",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "imports",
       "description": "Reads user settings for model selection, language, style",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/GemmaService.swift",
       "target": "file:Shortcast/Services/MediaExtractor.swift",
       "type": "calls",
       "description": "Extracts audio from video for multimodal prompt",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/GemmaService.swift",
       "target": "file:Shortcast/Services/PromptBuilder.swift",
       "type": "calls",
       "description": "Builds full prompt for Gemma 4 multimodal generation",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/GemmaService.swift",
       "target": "file:Shortcast/Services/JSONVariantParser.swift",
       "type": "calls",
       "description": "Parses model JSON output into PostVariant array",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/GemmaService.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "Accesses Gemma 4 E4B engine from ModelManager",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/GemmaService.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Produces GenerationResult containing PostVariant array",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MomentFinderService.swift",
       "target": "file:Shortcast/Services/PromptBuilder.swift",
       "type": "calls",
       "description": "Builds moment-finding + optional captioning prompts",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MomentFinderService.swift",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "imports",
       "description": "Accesses Director model (Qwen 3.5 9B) from ModelManager",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MomentFinderService.swift",
       "target": "file:Shortcast/Models/ClipCandidate.swift",
       "type": "imports",
       "description": "Produces ClipCandidate array from transcript analysis",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MomentFinderService.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Produces inline PostVariant captions when using combined mode",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/PromptBuilder.swift",
       "target": "file:Shortcast/Resources/social-content-coach.md",
       "type": "imports",
       "description": "Loads bundled copywriter prompt document as resource",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/VerticalReframer.swift",
       "target": "file:Shortcast/Services/VideoOverlayRenderer.swift",
       "type": "calls",
       "description": "Reuses hook band rendering for blurred fallback backgrounds",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/VerticalReframer.swift",
       "target": "file:Shortcast/Services/MediaExtractor.swift",
       "type": "calls",
       "description": "Uses video I/O utilities for frame extraction",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/PublishingProvider.swift",
       "target": "file:Shortcast/Services/UploadPostClient.swift",
       "type": "contains",
       "description": "UploadPostProvider contains UploadPostClient for HTTP operations",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/PublishingProvider.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Publishing protocol accepts PostVariant array for publishing",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/PublishingProvider.swift",
       "target": "file:Shortcast/Models/PublishReport.swift",
       "type": "imports",
       "description": "Returns PublishReport from publish operations",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/UploadPostClient.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Builds multipart form from PostVariant data",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/TikTokOfficialProvider.swift",
       "target": "file:Shortcast/Services/PublishingProvider.swift",
       "type": "implements",
       "description": "TikTokOfficialProvider implements PublishingProvider protocol",
-      "weight": 0.9
+      "weight": 0.9,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/TikTokOfficialProvider.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Uses PostVariant for TikTok-specific content posting",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MimoService.swift",
       "target": "file:Shortcast/Services/PromptBuilder.swift",
       "type": "calls",
       "description": "Uses same prompts as local Director for remote LLM",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MimoService.swift",
       "target": "file:Shortcast/Services/JSONVariantParser.swift",
       "type": "calls",
       "description": "Parses MiMo API responses using same tolerant parser",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MimoService.swift",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "imports",
       "description": "Reads MiMo API endpoint and credentials from settings",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/ModelManager.swift",
       "target": "file:Shortcast/Services/ChatModelProfile.swift",
       "type": "imports",
       "description": "Uses ChatModelProfile to select Qwen/Gemma for Director",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/ModelManager.swift",
       "target": "file:Shortcast/Services/KeychainStore.swift",
       "type": "calls",
       "description": "Stores/retrieves model paths in Keychain",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/TranscriptionService.swift",
       "target": "file:Shortcast/Models/VideoJob.swift",
       "type": "imports",
       "description": "Takes VideoJob URL for transcription input",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Models/ShortClip.swift",
       "target": "file:Shortcast/Models/ClipCandidate.swift",
       "type": "imports",
       "description": "ShortClip wraps a ClipCandidate with mutable state",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Models/ShortClip.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "ShortClip contains PostVariant array for each platform",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Models/ShortClip.swift",
       "target": "file:Shortcast/Models/VideoJob.swift",
       "type": "imports",
       "description": "ShortClip references VideoJob for the cut clip",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Models/PostVariant.swift",
       "target": "file:Shortcast/Models/String+Trimmed.swift",
       "type": "imports",
       "description": "Uses String.trimmed for hashtag and text cleanup",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Services/MediaExtractor.swift",
       "type": "imports",
       "description": "Probe CLI uses MediaExtractor for headless pipeline testing",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Services/GemmaService.swift",
       "type": "imports",
       "description": "Probe CLI uses GemmaService for headless generation testing",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Services/JSONVariantParser.swift",
       "type": "imports",
       "description": "Probe CLI uses JSONVariantParser to validate output",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Services/PromptBuilder.swift",
       "type": "imports",
       "description": "Probe CLI uses PromptBuilder for prompt assembly",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "imports",
       "description": "Probe CLI uses PostVariant model types",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:Probe/main.swift",
       "target": "file:Shortcast/Models/VideoJob.swift",
       "type": "imports",
       "description": "Probe CLI uses VideoJob for test input",
-      "weight": 0.7
+      "weight": 0.7,
+      "direction": "forward"
     },
     {
       "source": "file:.github/workflows/release.yml",
       "target": "file:project.yml",
       "type": "triggers",
       "description": "CI pipeline generates Xcode project from project.yml before building",
-      "weight": 0.6
+      "weight": 0.6,
+      "direction": "forward"
     },
     {
       "source": "file:project.yml",
       "target": "file:Shortcast/ShortcastApp.swift",
       "type": "configures",
       "description": "XcodeGen project.yml configures the Shortcast app target sources",
-      "weight": 0.6
+      "weight": 0.6,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Services/MomentFinderService.swift",
       "target": "file:Shortcast/Services/MimoService.swift",
       "type": "calls",
       "description": "MomentFinder delegates to MimoService as remote LLM alternative",
-      "weight": 0.8
+      "weight": 0.8,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/AppSettings.swift",
       "type": "contains",
       "description": "Models module contains AppSettings",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/VideoJob.swift",
       "type": "contains",
       "description": "Models module contains VideoJob",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/ClipCandidate.swift",
       "type": "contains",
       "description": "Models module contains ClipCandidate",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/PostVariant.swift",
       "type": "contains",
       "description": "Models module contains PostVariant",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/PublishReport.swift",
       "type": "contains",
       "description": "Models module contains PublishReport",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/ShortClip.swift",
       "type": "contains",
       "description": "Models module contains ShortClip",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:models",
       "target": "file:Shortcast/Models/String+Trimmed.swift",
       "type": "contains",
       "description": "Models module contains String+Trimmed",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "contains",
       "description": "Services module contains WorkspaceModel",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/GemmaService.swift",
       "type": "contains",
       "description": "Services module contains GemmaService",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/MomentFinderService.swift",
       "type": "contains",
       "description": "Services module contains MomentFinderService",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/MediaExtractor.swift",
       "type": "contains",
       "description": "Services module contains MediaExtractor",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/TranscriptionService.swift",
       "type": "contains",
       "description": "Services module contains TranscriptionService",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/VerticalReframer.swift",
       "type": "contains",
       "description": "Services module contains VerticalReframer",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/VideoOverlayRenderer.swift",
       "type": "contains",
       "description": "Services module contains VideoOverlayRenderer",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/PromptBuilder.swift",
       "type": "contains",
       "description": "Services module contains PromptBuilder",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/JSONVariantParser.swift",
       "type": "contains",
       "description": "Services module contains JSONVariantParser",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/PublishingProvider.swift",
       "type": "contains",
       "description": "Services module contains PublishingProvider",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/UploadPostClient.swift",
       "type": "contains",
       "description": "Services module contains UploadPostClient",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/TikTokOfficialProvider.swift",
       "type": "contains",
       "description": "Services module contains TikTokOfficialProvider",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/MimoService.swift",
       "type": "contains",
       "description": "Services module contains MimoService",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "contains",
       "description": "Services module contains ModelManager",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/ChatModelProfile.swift",
       "type": "contains",
       "description": "Services module contains ChatModelProfile",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:services",
       "target": "file:Shortcast/Services/KeychainStore.swift",
       "type": "contains",
       "description": "Services module contains KeychainStore",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ContentView.swift",
       "type": "contains",
       "description": "Views module contains ContentView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/DropZoneView.swift",
       "type": "contains",
       "description": "Views module contains DropZoneView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ModelDownloadView.swift",
       "type": "contains",
       "description": "Views module contains ModelDownloadView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ProcessingView.swift",
       "type": "contains",
       "description": "Views module contains ProcessingView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ResultsView.swift",
       "type": "contains",
       "description": "Views module contains ResultsView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/PostPreviewCard.swift",
       "type": "contains",
       "description": "Views module contains PostPreviewCard",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/PhoneVideoPlayer.swift",
       "type": "contains",
       "description": "Views module contains PhoneVideoPlayer",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ShortsProgressView.swift",
       "type": "contains",
       "description": "Views module contains ShortsProgressView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ShortsResultsView.swift",
       "type": "contains",
       "description": "Views module contains ShortsResultsView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ShortClipTile.swift",
       "type": "contains",
       "description": "Views module contains ShortClipTile",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ShortClipCard.swift",
       "type": "contains",
       "description": "Views module contains ShortClipCard",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/PublishResultView.swift",
       "type": "contains",
       "description": "Views module contains PublishResultView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/ScheduleSheet.swift",
       "type": "contains",
       "description": "Views module contains ScheduleSheet",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/SettingsView.swift",
       "type": "contains",
       "description": "Views module contains SettingsView",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "module:views",
       "target": "file:Shortcast/Views/Color+Hex.swift",
       "type": "contains",
       "description": "Views module contains Color+Hex utility",
-      "weight": 1.0
+      "weight": 1,
+      "direction": "forward"
     },
     {
       "source": "concept:on-device-ml",
       "target": "file:Shortcast/Services/GemmaService.swift",
       "type": "related",
       "description": "GemmaService implements on-device ML for multimodal captioning",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:on-device-ml",
       "target": "file:Shortcast/Services/MomentFinderService.swift",
       "type": "related",
       "description": "MomentFinderService implements on-device ML for transcript analysis",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:on-device-ml",
       "target": "file:Shortcast/Services/TranscriptionService.swift",
       "type": "related",
       "description": "TranscriptionService implements on-device ML for speech-to-text",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:on-device-ml",
       "target": "file:Shortcast/Services/ModelManager.swift",
       "type": "related",
       "description": "ModelManager manages on-device ML model lifecycle",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:two-flow-pipeline",
       "target": "file:Shortcast/Services/WorkspaceModel.swift",
       "type": "related",
       "description": "WorkspaceModel implements the two-flow pipeline state machine",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:multi-platform-publishing",
       "target": "file:Shortcast/Services/PublishingProvider.swift",
       "type": "related",
       "description": "PublishingProvider defines the multi-platform publishing abstraction",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "concept:multi-platform-publishing",
       "target": "file:Shortcast/Services/TikTokOfficialProvider.swift",
       "type": "related",
       "description": "TikTokOfficialProvider is a concrete multi-platform publisher",
-      "weight": 0.5
-    },
-    {
-      "source": "file:README.md",
-      "target": "file:project.yml",
-      "type": "documents",
-      "description": "README documents the project configuration and build process",
-      "weight": 0.5
+      "weight": 0.5,
+      "direction": "forward"
     },
     {
       "source": "file:Shortcast/Info.plist",
       "target": "file:Shortcast/ShortcastApp.swift",
       "type": "configures",
       "description": "Info.plist provides app bundle metadata for the app entry point",
-      "weight": 0.6
+      "weight": 0.6,
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/ShortcastApp.swift",
+      "target": "file:Shortcast/Models/ShortClip.swift",
+      "type": "calls",
+      "label": "ContentView displays ShortClip cards",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/AppSettings.swift",
+      "target": "file:Shortcast/Models/PublishReport.swift",
+      "type": "imports",
+      "label": "references PublishingProviderID enum",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/AppSettings.swift",
+      "target": "file:Shortcast/Services/ChatModelProfile.swift",
+      "type": "imports",
+      "label": "CopywriterModel.directorProfile returns ChatModelProfile",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/AppSettings.swift",
+      "target": "file:Shortcast/Services/KeychainStore.swift",
+      "type": "imports",
+      "label": "migrates legacy API key from Keychain to UserDefaults",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/AppSettings.swift",
+      "target": "file:Shortcast/Models/String+Trimmed.swift",
+      "type": "imports",
+      "label": "uses .trimmed for credential cleanup",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/ShortClip.swift",
+      "target": "file:Shortcast/Models/PublishReport.swift",
+      "type": "imports",
+      "label": "receives PublishReport from provider",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/ShortClip.swift",
+      "target": "file:Shortcast/Models/AppSettings.swift",
+      "type": "imports",
+      "label": "reads settings for publish flow (provider, draft, reframe defaults)",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/ClipCandidate.swift",
+      "target": "file:Shortcast/Models/PostVariant.swift",
+      "type": "imports",
+      "label": "holds optional inline PostVariant array",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Models/VideoJob.swift",
+      "target": "file:Shortcast/Services/MediaExtractor.swift",
+      "type": "imports",
+      "label": "created by MediaExtractor.makeJob()",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Services/GemmaService.swift",
+      "target": "file:Shortcast/Services/MediaExtractor.swift",
+      "type": "imports",
+      "label": "calls extractAudio to get audio track",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Services/GemmaService.swift",
+      "target": "file:Shortcast/Services/JSONVariantParser.swift",
+      "type": "imports",
+      "label": "parses model output into GenerationResult",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Services/GemmaService.swift",
+      "target": "file:Shortcast/Models/VideoJob.swift",
+      "type": "imports",
+      "label": "takes VideoJob as generation input",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Services/JSONVariantParser.swift",
+      "target": "file:Shortcast/Models/PostVariant.swift",
+      "type": "imports",
+      "label": "produces PostVariant values from JSON",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Services/JSONVariantParser.swift",
+      "target": "file:Shortcast/Models/String+Trimmed.swift",
+      "type": "imports",
+      "label": "uses .trimmed for string cleanup",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Probe/main.swift",
+      "target": "file:Shortcast/Resources/social-content-coach.md",
+      "type": "imports",
+      "label": "loads coach document as prompt context",
+      "direction": "forward"
+    },
+    {
+      "source": "file:project.yml",
+      "target": "file:Shortcast/Info.plist",
+      "type": "configures",
+      "label": "points to Info.plist via INFOPLIST_FILE setting",
+      "direction": "forward"
+    },
+    {
+      "source": "file:project.yml",
+      "target": "file:Shortcast/Assets.xcassets/Contents.json",
+      "type": "configures",
+      "label": "includes Shortcast/ as source directory",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/tiktok-official-publishing.md",
+      "target": "file:Shortcast/Models/AppSettings.swift",
+      "type": "related",
+      "label": "documents TikTok settings in AppSettings",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/tiktok-official-publishing.md",
+      "target": "file:Shortcast/Models/PublishReport.swift",
+      "type": "related",
+      "label": "documents shared PublishReport model",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/tiktok-official-publishing.md",
+      "target": "file:Shortcast/Services/JSONVariantParser.swift",
+      "type": "related",
+      "label": "documents provider extension pattern (PublishingProvider protocol)",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/youtube-instagram-publishing-ideas.md",
+      "target": "file:Shortcast/Models/AppSettings.swift",
+      "type": "related",
+      "label": "proposes new settings fields for YouTube/Instagram providers",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/youtube-instagram-publishing-ideas.md",
+      "target": "file:Shortcast/Models/PostVariant.swift",
+      "type": "related",
+      "label": "references PostVariant and SocialPlatform for provider design",
+      "direction": "forward"
+    },
+    {
+      "source": "file:docs/youtube-instagram-publishing-ideas.md",
+      "target": "file:Shortcast/Models/PublishReport.swift",
+      "type": "related",
+      "label": "proposes PublishingProviderID extensions (youtubeOfficial, instagramOfficial)",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Assets.xcassets/Contents.json",
+      "target": "file:Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "type": "contains",
+      "label": "asset catalog root contains AccentColor colorset",
+      "direction": "forward"
+    },
+    {
+      "source": "file:Shortcast/Assets.xcassets/Contents.json",
+      "target": "file:Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "type": "contains",
+      "label": "asset catalog root contains AppIcon iconset",
+      "direction": "forward"
+    },
+    {
+      "source": "file:README.md",
+      "target": "file:docs/tiktok-official-publishing.md",
+      "type": "configures",
+      "label": "links to TikTok publishing docs",
+      "direction": "forward"
     },
     {
       "source": "file:NOTICE",
-      "target": "file:README.md",
-      "type": "documents",
-      "description": "NOTICE provides legal attribution referenced by README",
-      "weight": 0.5
+      "target": "file:project.yml",
+      "type": "related",
+      "label": "attributes third-party packages defined in project.yml",
+      "direction": "forward"
     }
   ],
   "layers": [
     {
-      "id": "layer:presentation",
-      "name": "Presentation Layer",
-      "description": "SwiftUI views for the macOS app: routing, drop zones, processing indicators, results grids, clip editors, settings, and modals",
-      "nodeIds": [
-        "file:Shortcast/ShortcastApp.swift",
-        "file:Shortcast/Views/ContentView.swift",
-        "file:Shortcast/Views/DropZoneView.swift",
-        "file:Shortcast/Views/ModelDownloadView.swift",
-        "file:Shortcast/Views/ProcessingView.swift",
-        "file:Shortcast/Views/ResultsView.swift",
-        "file:Shortcast/Views/PostPreviewCard.swift",
-        "file:Shortcast/Views/PhoneVideoPlayer.swift",
-        "file:Shortcast/Views/ShortsProgressView.swift",
-        "file:Shortcast/Views/ShortsResultsView.swift",
-        "file:Shortcast/Views/ShortClipTile.swift",
-        "file:Shortcast/Views/ShortClipCard.swift",
-        "file:Shortcast/Views/PublishResultView.swift",
-        "file:Shortcast/Views/ScheduleSheet.swift",
-        "file:Shortcast/Views/SettingsView.swift",
-        "file:Shortcast/Views/Color+Hex.swift"
-      ]
-    },
-    {
-      "id": "layer:state-management",
-      "name": "State Management Layer",
-      "description": "Observable classes that bridge UI and services: AppSettings (user config), ModelManager (ML lifecycle), WorkspaceModel (pipeline orchestrator)",
-      "nodeIds": [
-        "file:Shortcast/Models/AppSettings.swift",
-        "file:Shortcast/Services/ModelManager.swift",
-        "file:Shortcast/Services/WorkspaceModel.swift",
-        "file:Shortcast/Services/ChatModelProfile.swift",
-        "file:Shortcast/Services/KeychainStore.swift"
-      ]
-    },
-    {
-      "id": "layer:ml-services",
-      "name": "ML & Generation Services",
-      "description": "On-device AI services: Director LLM for moment finding, Gemma 4 for multimodal captioning, WhisperKit for transcription, MimoService for remote LLM fallback",
-      "nodeIds": [
-        "file:Shortcast/Services/MomentFinderService.swift",
-        "file:Shortcast/Services/GemmaService.swift",
-        "file:Shortcast/Services/TranscriptionService.swift",
-        "file:Shortcast/Services/MimoService.swift",
-        "file:Shortcast/Services/PromptBuilder.swift",
-        "file:Shortcast/Services/JSONVariantParser.swift",
-        "file:Shortcast/Resources/social-content-coach.md"
-      ]
-    },
-    {
-      "id": "layer:media-processing",
-      "name": "Media Processing Services",
-      "description": "Video I/O and transformation: extraction, cutting, vertical reframe with face tracking, text overlay rendering",
-      "nodeIds": [
-        "file:Shortcast/Services/MediaExtractor.swift",
-        "file:Shortcast/Services/VerticalReframer.swift",
-        "file:Shortcast/Services/VideoOverlayRenderer.swift"
-      ]
-    },
-    {
-      "id": "layer:publishing",
-      "name": "Publishing Services",
-      "description": "Multi-platform publishing: protocol abstraction, Upload-Post API client, TikTok official API provider",
-      "nodeIds": [
-        "file:Shortcast/Services/PublishingProvider.swift",
-        "file:Shortcast/Services/UploadPostClient.swift",
-        "file:Shortcast/Services/TikTokOfficialProvider.swift"
-      ]
-    },
-    {
-      "id": "layer:data-models",
-      "name": "Data Models",
-      "description": "Pure value types: VideoJob, ClipCandidate, PostVariant, ShortClip, PublishReport, and utility extensions",
-      "nodeIds": [
-        "file:Shortcast/Models/VideoJob.swift",
-        "file:Shortcast/Models/ClipCandidate.swift",
-        "file:Shortcast/Models/PostVariant.swift",
-        "file:Shortcast/Models/PublishReport.swift",
-        "file:Shortcast/Models/ShortClip.swift",
-        "file:Shortcast/Models/String+Trimmed.swift"
-      ]
-    },
-    {
-      "id": "layer:config-and-infra",
-      "name": "Configuration & Infrastructure",
-      "description": "Build configuration (XcodeGen project.yml), CI/CD pipeline (GitHub Actions release.yml), app metadata (Info.plist)",
-      "nodeIds": [
-        "file:project.yml",
-        "file:.github/workflows/release.yml",
-        "file:Shortcast/Info.plist"
-      ]
-    },
-    {
-      "id": "layer:docs",
-      "name": "Documentation",
-      "description": "Project documentation: README overview and legal notices",
-      "nodeIds": [
-        "file:README.md",
-        "file:NOTICE"
-      ]
-    },
-    {
-      "id": "layer:dev-tools",
-      "name": "Developer Tools",
-      "description": "CLI probe for headless pipeline testing without UI",
-      "nodeIds": [
-        "file:Probe/main.swift"
-      ]
-    }
-  ],
-  "tour": [
-    {
-      "order": 1,
-      "title": "Project Overview",
-      "description": "Start with the README to understand what Shortcast does: a macOS app that turns long videos into ready-to-post shorts for TikTok, Instagram Reels, and YouTube Shorts — fully on-device.",
-      "nodeIds": [
-        "file:README.md"
-      ]
-    },
-    {
-      "order": 2,
-      "title": "App Entry Point",
-      "description": "ShortcastApp.swift bootstraps the macOS app, creating the three core environment objects (AppSettings, ModelManager, WorkspaceModel) and setting up the main window.",
+      "id": "app-entry",
+      "name": "App Entry & Bootstrap",
+      "description": "SwiftUI application entry point and environment setup. ShortcastApp bootstraps the three core @Observable objects (AppSettings, ModelManager, WorkspaceModel) and injects them into the SwiftUI environment via .environment().",
       "nodeIds": [
         "file:Shortcast/ShortcastApp.swift"
       ]
     },
     {
-      "order": 3,
-      "title": "Core State Machine",
-      "description": "WorkspaceModel is the heart of the app — an observable state machine managing two flows: single-video captioning and long-video shorts production. It orchestrates the entire pipeline from drop to publish.",
+      "id": "presentation",
+      "name": "Presentation Layer",
+      "description": "All SwiftUI views implementing the macOS UI. ContentView is the root state-machine view that routes between DropZoneView, ProcessingView, ResultsView (single-video flow) and ShortsProgressView, ShortsResultsView (long-video flow). SettingsView provides configuration. Views observe @Observable models from the layers below and call into WorkspaceModel to trigger actions.",
       "nodeIds": [
-        "file:Shortcast/Services/WorkspaceModel.swift"
+        "file:Shortcast/Views/ContentView.swift",
+        "file:Shortcast/Views/DropZoneView.swift",
+        "file:Shortcast/Views/ModelDownloadView.swift",
+        "file:Shortcast/Views/ProcessingView.swift",
+        "file:Shortcast/Views/ResultsView.swift",
+        "file:Shortcast/Views/ShortsProgressView.swift",
+        "file:Shortcast/Views/ShortsResultsView.swift",
+        "file:Shortcast/Views/ShortClipTile.swift",
+        "file:Shortcast/Views/ShortClipCard.swift",
+        "file:Shortcast/Views/PostPreviewCard.swift",
+        "file:Shortcast/Views/PublishResultView.swift",
+        "file:Shortcast/Views/ScheduleSheet.swift",
+        "file:Shortcast/Views/SettingsView.swift",
+        "file:Shortcast/Views/PhoneVideoPlayer.swift",
+        "file:Shortcast/Views/Color+Hex.swift"
       ]
     },
     {
-      "order": 4,
-      "title": "Data Models",
-      "description": "The data layer defines the vocabulary of the pipeline: VideoJob (input), ClipCandidate (viral moment), PostVariant (platform post), ShortClip (in-progress short), and PublishReport (result).",
+      "id": "state-orchestration",
+      "name": "State Orchestration",
+      "description": "Central state management layer. WorkspaceModel is the main state machine implementing the two-flow pipeline (single-video captioning and long-video shorts). It orchestrates all service calls: transcription, moment finding, captioning, cutting, reframing, and publishing. ShortClip is an @Observable per-clip lifecycle model combining candidate + cut clip + editable captions + publish state.",
       "nodeIds": [
-        "file:Shortcast/Models/VideoJob.swift",
-        "file:Shortcast/Models/ClipCandidate.swift",
-        "file:Shortcast/Models/PostVariant.swift",
-        "file:Shortcast/Models/ShortClip.swift",
-        "file:Shortcast/Models/PublishReport.swift"
+        "file:Shortcast/Services/WorkspaceModel.swift",
+        "file:Shortcast/Models/ShortClip.swift"
       ]
     },
     {
-      "order": 5,
-      "title": "On-Device ML Inference",
-      "description": "Three ML services power the intelligence: TranscriptionService (WhisperKit for speech-to-text), MomentFinderService (Qwen 3.5 Director for finding viral moments), and GemmaService (Gemma 4 E4B for multimodal captioning).",
+      "id": "ml-inference",
+      "name": "ML Inference & AI Services",
+      "description": "On-device machine learning layer using MLX and Gemma4Swift. ModelManager handles model lifecycle (download, load, engine management). GemmaService orchestrates multimodal generation (video+audio→JSON captions). MomentFinderService uses Director LLM to find viral moments from transcripts. TranscriptionService wraps WhisperKit for on-device speech-to-text. MimoService provides an optional remote LLM alternative. ChatModelProfile defines per-model sampling configuration.",
       "nodeIds": [
-        "file:Shortcast/Services/TranscriptionService.swift",
-        "file:Shortcast/Services/MomentFinderService.swift",
+        "file:Shortcast/Services/ModelManager.swift",
         "file:Shortcast/Services/GemmaService.swift",
-        "file:Shortcast/Services/ModelManager.swift"
-      ]
-    },
-    {
-      "order": 6,
-      "title": "Prompt Engineering",
-      "description": "PromptBuilder assembles the full AI prompt from the bundled social-content-coach.md (platform copywriting rules), language detection, style examples, and JSON schema. This drives both the Director and captioning models.",
-      "nodeIds": [
+        "file:Shortcast/Services/MomentFinderService.swift",
+        "file:Shortcast/Services/TranscriptionService.swift",
+        "file:Shortcast/Services/MimoService.swift",
         "file:Shortcast/Services/PromptBuilder.swift",
-        "file:Shortcast/Resources/social-content-coach.md",
-        "file:Shortcast/Services/JSONVariantParser.swift"
+        "file:Shortcast/Services/JSONVariantParser.swift",
+        "file:Shortcast/Services/ChatModelProfile.swift"
       ]
     },
     {
-      "order": 7,
-      "title": "Media Processing Pipeline",
-      "description": "MediaExtractor handles video validation, audio extraction, and clip cutting. VerticalReframer uses Vision-based face tracking to reframe 16:9 to 9:16. VideoOverlayRenderer burns text hooks into clips.",
+      "id": "media-processing",
+      "name": "Media Processing Pipeline",
+      "description": "AVFoundation-based video and audio processing services. MediaExtractor handles video validation, audio extraction, and clip cutting. VerticalReframer converts 16:9 to 9:16 using Vision face tracking with a panning virtual camera and blurred letterbox fallback. VideoOverlayRenderer burns text hooks into clips using AVVideoCompositionCoreAnimationTool.",
       "nodeIds": [
         "file:Shortcast/Services/MediaExtractor.swift",
         "file:Shortcast/Services/VerticalReframer.swift",
@@ -1795,9 +2481,9 @@
       ]
     },
     {
-      "order": 8,
-      "title": "Multi-Platform Publishing",
-      "description": "The PublishingProvider protocol abstracts two backends: UploadPostProvider (multipart form to Upload-Post API for all 3 platforms) and TikTokOfficialProvider (direct TikTok API with video chunking).",
+      "id": "publishing",
+      "name": "Publishing Integration",
+      "description": "Protocol-based multi-platform publishing abstraction. PublishingProvider defines the protocol; UploadPostProvider and TikTokOfficialProvider are concrete implementations. UploadPostClient handles the Upload-Post REST API (multipart form, all 3 platforms). TikTokOfficialProvider handles the TikTok Content Posting API (inbox upload or direct post with chunked upload).",
       "nodeIds": [
         "file:Shortcast/Services/PublishingProvider.swift",
         "file:Shortcast/Services/UploadPostClient.swift",
@@ -1805,53 +2491,94 @@
       ]
     },
     {
-      "order": 9,
-      "title": "SwiftUI Views — Navigation",
-      "description": "ContentView is the root navigator routing through phases: DropZoneView (idle), ModelDownloadView (first run), ProcessingView/ShortsProgressView (in flight), ResultsView/ShortsResultsView (done).",
+      "id": "data-models",
+      "name": "Data Models",
+      "description": "Pure value types and data structures representing the domain model. All models conform to Sendable for concurrency safety. AppSettings is the centralized user configuration persisted to UserDefaults. The remaining models represent pipeline artifacts: VideoJob (input metadata), ClipCandidate (Director-selected moments), PostVariant (platform-specific post content), and PublishReport (publish outcomes).",
       "nodeIds": [
-        "file:Shortcast/Views/ContentView.swift",
-        "file:Shortcast/Views/DropZoneView.swift",
-        "file:Shortcast/Views/ModelDownloadView.swift"
+        "file:Shortcast/Models/AppSettings.swift",
+        "file:Shortcast/Models/VideoJob.swift",
+        "file:Shortcast/Models/ClipCandidate.swift",
+        "file:Shortcast/Models/PostVariant.swift",
+        "file:Shortcast/Models/PublishReport.swift",
+        "file:Shortcast/Models/String+Trimmed.swift"
       ]
     },
     {
-      "order": 10,
-      "title": "SwiftUI Views — Results & Editing",
-      "description": "ResultsView shows three platform cards (PostPreviewCard). ShortsResultsView shows a grid of ShortClipTile cards. ShortClipCard provides full per-clip editing with reframe toggle, overlay text, and per-clip publishing.",
+      "id": "config-resources",
+      "name": "Configuration & Resources",
+      "description": "App configuration files, bundled resources, UI assets, and documentation. Includes the KeychainStore utility for secure credential storage, the bundled AI prompt document (social-content-coach.md), Xcode asset catalog assets, and project-level documentation.",
       "nodeIds": [
-        "file:Shortcast/Views/ResultsView.swift",
-        "file:Shortcast/Views/PostPreviewCard.swift",
-        "file:Shortcast/Views/ShortsResultsView.swift",
-        "file:Shortcast/Views/ShortClipTile.swift",
-        "file:Shortcast/Views/ShortClipCard.swift"
+        "file:Shortcast/Services/KeychainStore.swift",
+        "file:Shortcast/Resources/social-content-coach.md",
+        "file:Shortcast/Info.plist",
+        "file:Shortcast/Assets.xcassets/Contents.json",
+        "file:Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+        "file:Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+        "file:README.md",
+        "file:docs/tiktok-official-publishing.md",
+        "file:docs/youtube-instagram-publishing-ideas.md",
+        "file:NOTICE"
       ]
     },
     {
-      "order": 11,
-      "title": "Settings & Configuration",
-      "description": "SettingsView provides the full configuration UI: API credentials (Upload-Post, TikTok), caption style preferences, MiMo remote LLM toggle, and model download status.",
+      "id": "dev-tools-pipeline",
+      "name": "Developer Tools & Build Pipeline",
+      "description": "Developer-facing tools and CI/CD infrastructure. Probe is a CLI tool that runs the full generation pipeline headlessly for testing. The GitHub Actions workflow builds, packages, and releases the app as a .dmg. project.yml defines the XcodeGen project with all SPM dependencies.",
       "nodeIds": [
-        "file:Shortcast/Views/SettingsView.swift",
-        "file:Shortcast/Models/AppSettings.swift"
-      ]
-    },
-    {
-      "order": 12,
-      "title": "Build & CI/CD",
-      "description": "project.yml defines the XcodeGen build (SPM dependencies: Gemma4Swift, mlx-swift-lm, WhisperKit). The GitHub Actions workflow automates release builds and .dmg packaging on version tags.",
-      "nodeIds": [
-        "file:project.yml",
+        "file:Probe/main.swift",
         "file:.github/workflows/release.yml",
-        "file:Shortcast/Info.plist"
+        "file:project.yml"
       ]
+    }
+  ],
+  "tour": [
+    {
+      "order": 0,
+      "title": "App Entry & Environment Bootstrap",
+      "description": "Shortcast is a macOS SwiftUI app using the @Observable pattern. The entry point `ShortcastApp.swift` creates three core objects — AppSettings (user prefs), ModelManager (ML models), and WorkspaceModel (pipeline orchestrator) — and injects them into the SwiftUI environment. This is the foundation every other layer builds on.",
+      "nodeIds": []
     },
     {
-      "order": 13,
-      "title": "Developer Tools",
-      "description": "Probe/main.swift is a CLI tool for headless pipeline testing — runs the full generation path (video → audio → Gemma → JSON parse) without the UI, useful for debugging and validation.",
-      "nodeIds": [
-        "file:Probe/main.swift"
-      ]
+      "order": 0,
+      "title": "The View Router — ContentView",
+      "description": "ContentView is the root view and serves as a state machine. It observes the ModelManager (is the model ready?) and WorkspaceModel (what phase are we in?) to decide which screen to show. This pattern keeps navigation logic centralized and deterministic.",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "The Pipeline Orchestrator — WorkspaceModel",
+      "description": "WorkspaceModel is the central state machine that orchestrates the entire processing pipeline. For the long-video flow, it sequences: video validation → audio extraction → transcription → moment finding → clip cutting → captioning → vertical reframing → publishing. For the single-video flow, it runs a shorter pipeline: video → multimodal captioning → post variants. It calls into every service layer.",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "On-Device ML Inference",
+      "description": "All AI processing happens locally on the Mac — no cloud ML calls. ModelManager handles model lifecycle (download from HuggingFace, load into MLX engines). Three ML services use these engines: TranscriptionService (WhisperKit for speech-to-text), MomentFinderService (Director LLM — Qwen 3.5 9B or Gemma 4 12B for finding viral moments from transcripts), and GemmaService (Gemma 4 E4B multimodal for generating captions from video+audio). PromptBuilder assembles prompts from a bundled copywriter document.",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "Media Processing Pipeline",
+      "description": "Three services handle all video/audio manipulation: MediaExtractor (validate videos, extract audio to .m4a, cut clips with passthrough export), VerticalReframer (convert 16:9 to 9:16 using Vision face tracking with a panning virtual camera, or blurred letterbox fallback), and VideoOverlayRenderer (burn text hooks into clips as top bands with fade-out animations).",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "Multi-Platform Publishing",
+      "description": "Publishing uses a protocol-based abstraction: PublishingProvider defines the interface, with two concrete implementations — UploadPostProvider (sends to all 3 platforms via Upload-Post REST API in one request) and TikTokOfficialProvider (uses TikTok's Content Posting API directly with inbox upload or direct post). The protocol pattern makes it easy to add new providers (YouTube/Instagram official APIs are planned in docs).",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "Data Models & Domain Types",
+      "description": "All models are Sendable for concurrency safety. AppSettings persists user preferences to UserDefaults. The pipeline flows through: VideoJob (input) → ClipCandidate (Director-selected moments) → PostVariant (platform-specific posts) → PublishReport (publish outcomes). ShortClip is the observable per-clip lifecycle wrapper combining all these.",
+      "nodeIds": []
+    },
+    {
+      "order": 0,
+      "title": "Configuration, Resources & Dev Tools",
+      "description": "The project uses XcodeGen (project.yml) to generate the Xcode project from YAML, with SPM dependencies on Gemma4Swift, mlx-swift-lm, HuggingFace Hub, and WhisperKit. The bundled social-content-coach.md is the AI copywriter prompt loaded at runtime. Probe/main.swift is a CLI tool that runs the full generation pipeline headlessly for testing without the UI. CI/CD is handled by GitHub Actions (.github/workflows/release.yml).",
+      "nodeIds": []
     }
   ]
 }
