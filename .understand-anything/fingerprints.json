@@ -1,0 +1,497 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "58979b26ebebc246660027aae56f475cc87d36a2",
+  "generatedAt": "2026-06-08T04:02:50.840Z",
+  "files": {
+    "./.github/workflows/release.yml": {
+      "filePath": "./.github/workflows/release.yml",
+      "contentHash": "cd851b4ca4aaaa8fceb845296ab70599775a92df9e664769332c16713bb95d43",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 73,
+      "hasStructuralAnalysis": true
+    },
+    "./Probe/main.swift": {
+      "filePath": "./Probe/main.swift",
+      "contentHash": "054cd4199f3252d85ca3a476e2f7b3448da0ff98889ca07eb60edd859216db26",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 68,
+      "hasStructuralAnalysis": false
+    },
+    "./README.md": {
+      "filePath": "./README.md",
+      "contentHash": "271e033f9ad800430f261a669558701e73459da17f77fa5827cd215be6a293e9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 261,
+      "hasStructuralAnalysis": true
+    },
+    "./Shortcast.xcodeproj/xcuserdata/vtit.xcuserdatad/xcschemes/xcschememanagement.plist": {
+      "filePath": "./Shortcast.xcodeproj/xcuserdata/vtit.xcuserdatad/xcschemes/xcschememanagement.plist",
+      "contentHash": "69486b94a31bc8f52fa2389671e9e3540fc64d6bb6acb14030c555c44298b346",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json": {
+      "filePath": "./Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "contentHash": "bfd6b56f9b2685cd30d6eb2f990dd64ccbab0a6207bd363080ede28f0449dab0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": true
+    },
+    "./Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+      "filePath": "./Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "contentHash": "be29306ab94090861985d9407ae584453d36f9dfe464c309798570491f5d3a25",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 16,
+      "hasStructuralAnalysis": true
+    },
+    "./Shortcast/Assets.xcassets/Contents.json": {
+      "filePath": "./Shortcast/Assets.xcassets/Contents.json",
+      "contentHash": "0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": true
+    },
+    "./Shortcast/Info.plist": {
+      "filePath": "./Shortcast/Info.plist",
+      "contentHash": "1ab9a7224fe5c906c939c45244335ce7a0b654b0af07b8337ae52929e98a7605",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 37,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/AppSettings.swift": {
+      "filePath": "./Shortcast/Models/AppSettings.swift",
+      "contentHash": "8ac3e7228d703f7a70d7289753fc5c2775259e2331d0b83b2cf9ecf90b8ab35f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 327,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/ClipCandidate.swift": {
+      "filePath": "./Shortcast/Models/ClipCandidate.swift",
+      "contentHash": "af48975c462a8e96baa09759ae4b3c221192afd5835d90174aa587b3de2c3548",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 35,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/PostVariant.swift": {
+      "filePath": "./Shortcast/Models/PostVariant.swift",
+      "contentHash": "312fe39aba701294c8a9e5bb074ded481d31cca1a79075b790caf6e81c76cfc2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 71,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/PublishReport.swift": {
+      "filePath": "./Shortcast/Models/PublishReport.swift",
+      "contentHash": "31ace15f52d69f71dda2fedc9e6cfde8ae328d53a1c99e5b34d750e1278d5475",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 36,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/ShortClip.swift": {
+      "filePath": "./Shortcast/Models/ShortClip.swift",
+      "contentHash": "973e5a4566fdad04e33ce3bbe97011a6b81bbb292e887d11073eac8b352a3fb8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 166,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/String+Trimmed.swift": {
+      "filePath": "./Shortcast/Models/String+Trimmed.swift",
+      "contentHash": "80575d979b652e565947e16b9db2a32b3cdb5e0ee6a1d612bafbdb33f88456ed",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 7,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Models/VideoJob.swift": {
+      "filePath": "./Shortcast/Models/VideoJob.swift",
+      "contentHash": "42d1f6a7d79717f80b5575352e06c29f57f295d4d9f37a750e0bb8080131bba0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 22,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Resources/social-content-coach.md": {
+      "filePath": "./Shortcast/Resources/social-content-coach.md",
+      "contentHash": "1a63135e03070b69a14bace6b47079fc889c3bd9c388c71afdeaed85fd15cfed",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 98,
+      "hasStructuralAnalysis": true
+    },
+    "./Shortcast/Services/ChatModelProfile.swift": {
+      "filePath": "./Shortcast/Services/ChatModelProfile.swift",
+      "contentHash": "99bd25fe83a0c4a40af83b2dbda4e20c292879a0c4cc1883dae9121b181c3182",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 93,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/GemmaService.swift": {
+      "filePath": "./Shortcast/Services/GemmaService.swift",
+      "contentHash": "950b40283f480568456372a9714702d9bfb4b3546e1ae3e43652739885a59993",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 31,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/JSONVariantParser.swift": {
+      "filePath": "./Shortcast/Services/JSONVariantParser.swift",
+      "contentHash": "8b873b2a1bb5eb0e17cab3299ba0a34cf57a9c07f08b90ebe96a3b6e84e71121",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 177,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/KeychainStore.swift": {
+      "filePath": "./Shortcast/Services/KeychainStore.swift",
+      "contentHash": "30b32d993f333c553160b3d1faa0cef178e7c683813e470812d8d956c0078945",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 49,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/MediaExtractor.swift": {
+      "filePath": "./Shortcast/Services/MediaExtractor.swift",
+      "contentHash": "922cc4879cba0cde8de3968e4c0c51904becc4f4d99473d9cecf57f387be4e51",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/MimoService.swift": {
+      "filePath": "./Shortcast/Services/MimoService.swift",
+      "contentHash": "b94c1cf7decd2cb3789b1aa61baa4fa48f4e6cf19a9e62aed52df6cde3179630",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 204,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/ModelManager.swift": {
+      "filePath": "./Shortcast/Services/ModelManager.swift",
+      "contentHash": "ea9c529cba57e20d6afece3f5f44e4daec46dc60839408c07ddef777af6a1ee5",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 105,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/MomentFinderService.swift": {
+      "filePath": "./Shortcast/Services/MomentFinderService.swift",
+      "contentHash": "b88a10503726b86234977050ece5d04d667c4d018e2957561b6c5a09f6734a4f",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 443,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/PromptBuilder.swift": {
+      "filePath": "./Shortcast/Services/PromptBuilder.swift",
+      "contentHash": "fd3c2d759449fee732deae55e8717c90bcdb27f618ec5f39acd9e3fd858d8191",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 172,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/PublishingProvider.swift": {
+      "filePath": "./Shortcast/Services/PublishingProvider.swift",
+      "contentHash": "f0867d866eef4afc650f70c40af56f3c8d7b9855d2a0db489ed858fb95745365",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 58,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/TikTokOfficialProvider.swift": {
+      "filePath": "./Shortcast/Services/TikTokOfficialProvider.swift",
+      "contentHash": "b30fa6b1338f082a911fa823bde789c8629877b91e3da8797ab85b7a7b84b49c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 275,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/TranscriptionService.swift": {
+      "filePath": "./Shortcast/Services/TranscriptionService.swift",
+      "contentHash": "18812150ac44865ca116fb1a888cb1ad3e8d2d13d3d21134c6ea8ff4ac3e1cb7",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 261,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/UploadPostClient.swift": {
+      "filePath": "./Shortcast/Services/UploadPostClient.swift",
+      "contentHash": "8f09b550e8c8b675c68381a9b788255c45c2d8457377f56be8d91ffa93ef08a4",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 234,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/VerticalReframer.swift": {
+      "filePath": "./Shortcast/Services/VerticalReframer.swift",
+      "contentHash": "915ee53bf6fcff9ff451cc9107c879eaccfa882b401d1597b0d64e97b5298681",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 365,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/VideoOverlayRenderer.swift": {
+      "filePath": "./Shortcast/Services/VideoOverlayRenderer.swift",
+      "contentHash": "c81a36b2a1814cc4686aa66e0e0ae809c0349d041e73b4de5939e86c41b3dda9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 181,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Services/WorkspaceModel.swift": {
+      "filePath": "./Shortcast/Services/WorkspaceModel.swift",
+      "contentHash": "b192f361945cee12d87766ac7e79e3b57fcba7c29daf35d63c8e66db42a63c45",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 445,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/ShortcastApp.swift": {
+      "filePath": "./Shortcast/ShortcastApp.swift",
+      "contentHash": "24311f40f9d8d8896e49f2bf3bc3bb9a6afd86a527c163887f33c6c7c4d44f94",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 34,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/Color+Hex.swift": {
+      "filePath": "./Shortcast/Views/Color+Hex.swift",
+      "contentHash": "5c328fe09ee60e0d6d7ee3279fd553bf5bf56a46e50673bff2c6a904f1f57708",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 20,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ContentView.swift": {
+      "filePath": "./Shortcast/Views/ContentView.swift",
+      "contentHash": "47586c21be8cd415e9e852368eb95384b963b3901d0accff154a88a6354b5d7c",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 65,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/DropZoneView.swift": {
+      "filePath": "./Shortcast/Views/DropZoneView.swift",
+      "contentHash": "7543b3edf9dfa36a2c5cea6e5d0ac9193cd55cffc40c974a9fcf4957eef11c9d",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 88,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ModelDownloadView.swift": {
+      "filePath": "./Shortcast/Views/ModelDownloadView.swift",
+      "contentHash": "fb36cde3ac0564e2dfd31d66b5a226f2e1939ff59cf321d84aa6cd8d6f185e93",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 97,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/PhoneVideoPlayer.swift": {
+      "filePath": "./Shortcast/Views/PhoneVideoPlayer.swift",
+      "contentHash": "d7bbb8919c7bf0a01f627fdbb451738d5dafb9a24e2c345fb213a62a9d4584a2",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 45,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/PostPreviewCard.swift": {
+      "filePath": "./Shortcast/Views/PostPreviewCard.swift",
+      "contentHash": "bb44a8c3d37d6cb65a2e61852be7424bd2d807bcdda05897f013b0fd554ed8e9",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 326,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ProcessingView.swift": {
+      "filePath": "./Shortcast/Views/ProcessingView.swift",
+      "contentHash": "3212593b185187d393c1bf6c47018e2ec5c73be9475f0027a705f79fccb6f282",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 63,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/PublishResultView.swift": {
+      "filePath": "./Shortcast/Views/PublishResultView.swift",
+      "contentHash": "22ac310a56185045191b040e64a9f009efc62c6bc85c6c426051754885cdee72",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 80,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ResultsView.swift": {
+      "filePath": "./Shortcast/Views/ResultsView.swift",
+      "contentHash": "c7b8b8e8faa08ae7b63f6ecdde66fdb5417277f12b8f5867bc325b998b023196",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 124,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ScheduleSheet.swift": {
+      "filePath": "./Shortcast/Views/ScheduleSheet.swift",
+      "contentHash": "205594c9c32b14c999eb797c3bcc67e629c35518f0b34a3c9d338f93b02ddfb0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 193,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/SettingsView.swift": {
+      "filePath": "./Shortcast/Views/SettingsView.swift",
+      "contentHash": "b7d862ebb8c4250dff4dd09a9a3bd54a82001e4ecc0b5921ff3f52216c28c400",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 343,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ShortClipCard.swift": {
+      "filePath": "./Shortcast/Views/ShortClipCard.swift",
+      "contentHash": "73690d03e159e913ae5cf5d332822a231c935af1c94e4a3d0706cb24ac62446a",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 169,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ShortClipTile.swift": {
+      "filePath": "./Shortcast/Views/ShortClipTile.swift",
+      "contentHash": "217da62c39f814fcc41dc02516488de2803dd7b57cf296f96ffe6a350620fddf",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 302,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ShortsProgressView.swift": {
+      "filePath": "./Shortcast/Views/ShortsProgressView.swift",
+      "contentHash": "9dfde2e1b15f97e640eb1758a301d47feee6a7e85665ba5f496912a932076004",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 188,
+      "hasStructuralAnalysis": false
+    },
+    "./Shortcast/Views/ShortsResultsView.swift": {
+      "filePath": "./Shortcast/Views/ShortsResultsView.swift",
+      "contentHash": "393ad307e2f87a694b39bd665784bab00f62e9d6d94fc74f7a60adb4892a3868",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 145,
+      "hasStructuralAnalysis": false
+    },
+    "./project.yml": {
+      "filePath": "./project.yml",
+      "contentHash": "267166a378e487f5be37ee4af035b47a68da5e3824bb6e0b5d4bbd1108141be8",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 100,
+      "hasStructuralAnalysis": true
+    }
+  }
+}

@@ -159,12 +159,14 @@ button often doesn't appear for unsigned apps — use the Terminal command inste
 - Shortcast downloads the models it needs on first use, with a visible progress bar:
   the **Director** (Gemma 4 12B ≈ 7 GB, or Qwen 3.5 9B ≈ 5 GB) and **WhisperKit
   large-v3** for transcription. Happens once, then it works offline.
-- Open **Settings** (⌘,) and add your [Upload-Post](https://upload-post.com) **API key**
-  and **profile name** (the one from *Manage Users*, not your social handle).
+- Open **Settings** (⌘,) and choose a publishing provider. Upload-Post needs an
+  [Upload-Post](https://upload-post.com) **API key** and **profile name**. TikTok
+  official API needs a TikTok user access token; see
+  [docs/tiktok-official-publishing.md](docs/tiktok-official-publishing.md).
 - Optionally set a caption language and paste a few of your own captions as style
   examples — the model will match your voice.
 
-You can generate shorts without Upload-Post; only publishing/scheduling needs it.
+You can generate shorts without a publishing provider; only publishing/scheduling needs one.
 
 ## Build from source
 
@@ -210,7 +212,7 @@ git push origin v0.1.0
 | Gemma 4 runtime  | [gemma-4-swift-mlx](https://github.com/VincentGourbin/gemma-4-swift-mlx), vendored in `Vendor/` |
 | Vertical reframe | Vision (face detection) + AVFoundation (transform ramps / Core Image)|
 | Media            | AVFoundation (cut, sample, export) · AVKit playback                  |
-| Publishing       | [Upload-Post](https://upload-post.com) API (publish + schedule)      |
+| Publishing       | [Upload-Post](https://upload-post.com) API, or TikTok official Content Posting API |
 | Build            | XcodeGen · GitHub Actions                                            |
 
 ## Privacy
@@ -219,11 +221,12 @@ Transcription, moment-finding, captioning, cutting and reframing all run inside 
 on your Mac. The only outbound traffic before you publish is:
 
 - **First use only**: one-time downloads of the model weights from Hugging Face.
-- **On Publish / Schedule**: an upload to Upload-Post with the rendered short and the copy
-  you approved (immediately, or at the scheduled time).
+- **On Publish / Schedule**: an upload to the selected publishing provider with the
+  rendered short and the copy you approved. Upload-Post can publish/schedule multiple
+  networks; TikTok official API uploads only TikTok.
 
-Your Upload-Post API key is stored locally on your Mac (app preferences) and is only ever
-sent to Upload-Post over HTTPS when you publish. It is never written into the repository.
+Publishing credentials are stored locally on your Mac (app preferences) and are only sent
+to their provider over HTTPS when needed. They are never written into the repository.
 
 ## Known limitations
 
