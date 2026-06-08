@@ -185,9 +185,17 @@ Build and run the **Shortcast** scheme. The `.xcodeproj` is generated from
 `project.yml` and intentionally not committed — `xcodegen` regenerates it.
 
 > CLI builds need `-skipMacroValidation`:
+>
+> **Debug build:**
 > ```bash
 > xcodebuild -project Shortcast.xcodeproj -scheme Shortcast \
 >   -configuration Debug -skipMacroValidation -destination 'platform=macOS' build
+> ```
+>
+> **Release build:**
+> ```bash
+> xcodebuild -project Shortcast.xcodeproj -scheme Shortcast \
+>   -configuration Release -skipMacroValidation -destination 'platform=macOS' build
 > ```
 
 ### Release DMG
