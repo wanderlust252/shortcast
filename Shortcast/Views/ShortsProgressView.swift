@@ -48,6 +48,8 @@ struct ShortsProgressView: View {
 
     private var headline: String {
         switch workspace.phase {
+        case .discoveringProducts:
+            return "Finding products in your video…"
         case .transcribing:
             switch workspace.transcription.phase {
             case .downloadingModel: return "Downloading the transcription model…"
@@ -63,6 +65,8 @@ struct ShortsProgressView: View {
 
     private var detail: String? {
         switch workspace.phase {
+        case .discoveringProducts:
+            return "Sampling frames every 30 seconds with the on-device product detector."
         case .transcribing:
             switch workspace.transcription.phase {
             case .downloadingModel(let f): return "First run only — \(Int(f * 100))%"

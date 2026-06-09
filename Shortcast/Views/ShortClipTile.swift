@@ -28,6 +28,7 @@ struct ShortClipTile: View {
             if let url = clip.clipJob?.url {
                 ClipPlayerSheet(url: url,
                                 reframe: clip.reframeEnabled && clip.isLandscape,
+                                focusMode: clip.focusMode,
                                 title: clip.candidate.hook)
             }
         }
@@ -230,6 +231,7 @@ struct ClipPlayerSheet: View {
     /// When true, the clip is reframed to vertical 9:16 live, so the preview
     /// matches the published/downloaded file (the burned-in hook is export-only).
     var reframe: Bool = false
+    var focusMode: AppSettings.FocusMode = .speaker
     var title: String = ""
     @Environment(\.dismiss) private var dismiss
     @State private var player: AVPlayer?
@@ -264,7 +266,10 @@ struct ClipPlayerSheet: View {
     private func load() async {
         if reframe {
             loading = true
-            let item = await VerticalReframer.previewItem(clipURL: url, reframe: true)
+            let item = await VerticalReframer.previewItem(
+                clipURL: url,
+                reframe: true,
+                focusMode: focusMode)
             let p = item != nil ? AVPlayer(playerItem: item) : AVPlayer(url: url)
             p.play()
             player = p

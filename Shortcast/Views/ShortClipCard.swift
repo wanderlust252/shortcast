@@ -88,9 +88,23 @@ struct ShortClipCard: View {
             .toggleStyle(.switch)
 
             if clip.reframeEnabled {
-                Text("Tracks the speaker and reframes this horizontal clip for TikTok/Reels/Shorts when you publish.")
+                Picker("Focus tracking", selection: $clip.focusMode) {
+                    ForEach(AppSettings.FocusMode.allCases) { mode in
+                        Text(mode.displayName)
+                            .tag(mode)
+                            .disabled(mode != .speaker && !ProductFocusDetector.isModelBundled)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(clip.focusMode.description)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+                if !ProductFocusDetector.isModelBundled {
+                    Text("Product tracking needs ProductDetector in the app bundle.")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
             }
         }
         .padding(10)

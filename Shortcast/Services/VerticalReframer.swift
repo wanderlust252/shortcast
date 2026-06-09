@@ -17,8 +17,8 @@ import QuartzCore
 enum VerticalReframer {
 
     /// 1080×1920 — the standard short-form canvas.
-    private static let outW: CGFloat = 1080
-    private static let outH: CGFloat = 1920
+    nonisolated private static let outW: CGFloat = 1080
+    nonisolated private static let outH: CGFloat = 1920
 
     // MARK: - Public
 
@@ -40,7 +40,12 @@ enum VerticalReframer {
     ///
     /// - `reframe`: convert 16:9 → 9:16 (caller already checked it's landscape).
     /// - `overlayText`: burn this text hook into the first seconds (nil = none).
-    static func process(clipURL: URL, reframe: Bool, overlayText: String?) async throws -> URL? {
+    static func process(
+        clipURL: URL,
+        reframe: Bool,
+        overlayText: String?,
+        focusMode: AppSettings.FocusMode = .speaker
+    ) async throws -> URL? {
         let hook = overlayText?.trimmingCharacters(in: .whitespacesAndNewlines)
         let wantOverlay = !(hook?.isEmpty ?? true)
 
@@ -62,14 +67,16 @@ enum VerticalReframer {
         let oriented = naturalSize.applying(transform)
         let orientedSize = CGSize(width: abs(oriented.width), height: abs(oriented.height))
 
-        // Sample faces across the clip; if enough frames have a clear face, track
-        // it. Otherwise fall back to a blurred-background letterbox.
+        // Sample the selected focus target across the clip; if enough frames
+        // have a clear target, track it. Otherwise fall back to a blurred
+        // background letterbox.
         let totalSeconds = CMTimeGetSeconds(duration)
-        let samples = await sampleFaces(clipURL: clipURL, duration: totalSeconds)
-        let withFace = samples.filter { $0.midX != nil }.count
-        let trackable = !samples.isEmpty && Double(withFace) / Double(samples.count) >= 0.4
+        let samples = await focusSamples(
+            clipURL: clipURL,
+            duration: totalSeconds,
+            mode: focusMode)
 
-        if trackable {
+        if isTrackable(samples) {
             let keyframes = panPath(from: samples, orientedSize: orientedSize)
             return try await renderTracking(
                 asset: asset, videoTrack: videoTrack, duration: duration,
@@ -87,13 +94,19 @@ enum VerticalReframer {
 
     // MARK: - Face sampling (Vision)
 
-    private struct Sample { let time: Double; let midX: CGFloat? }
+    private struct FocusSample {
+        let time: Double
+        let midX: CGFloat?
+        let confidence: Float
+    }
+
+    nonisolated private static let productAutoThreshold: Float = 0.7
 
     /// Detects the largest face every ~0.5 s. `midX` is the face's horizontal
     /// centre in 0…1 of the oriented frame; nil when no face is found. Runs off
     /// the main actor (Vision is CPU-heavy) and only takes the URL so no
     /// non-Sendable AVFoundation object crosses isolation.
-    nonisolated private static func sampleFaces(clipURL: URL, duration: Double) async -> [Sample] {
+    nonisolated private static func sampleFaces(clipURL: URL, duration: Double) async -> [FocusSample] {
         let asset = AVURLAsset(url: clipURL)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true   // upright frames
@@ -101,19 +114,80 @@ enum VerticalReframer {
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.25, preferredTimescale: 600)
         generator.maximumSize = CGSize(width: 512, height: 512)  // plenty for detection
 
-        var samples: [Sample] = []
+        var samples: [FocusSample] = []
         var t = 0.0
         let step = 0.5
         while t < max(step, duration) {
             let time = CMTime(seconds: t, preferredTimescale: 600)
             if let (cgImage, _) = try? await generator.image(at: time) {
-                samples.append(Sample(time: t, midX: largestFaceMidX(in: cgImage)))
+                samples.append(FocusSample(
+                    time: t,
+                    midX: largestFaceMidX(in: cgImage),
+                    confidence: 1))
             } else {
-                samples.append(Sample(time: t, midX: nil))
+                samples.append(FocusSample(time: t, midX: nil, confidence: 0))
             }
             t += step
         }
         return samples
+    }
+
+    nonisolated private static func sampleProducts(clipURL: URL, duration: Double) async -> [FocusSample] {
+        let asset = AVURLAsset(url: clipURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.25, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.25, preferredTimescale: 600)
+        generator.maximumSize = CGSize(width: 640, height: 640)
+
+        var samples: [FocusSample] = []
+        var t = 0.0
+        let step = 0.5
+        while t < max(step, duration) {
+            let time = CMTime(seconds: t, preferredTimescale: 600)
+            if let (cgImage, _) = try? await generator.image(at: time),
+               let product = await ProductFocusDetector.shared.detectProduct(in: cgImage) {
+                samples.append(FocusSample(
+                    time: t,
+                    midX: product.midX,
+                    confidence: product.confidence))
+            } else {
+                samples.append(FocusSample(time: t, midX: nil, confidence: 0))
+            }
+            t += step
+        }
+        return samples
+    }
+
+    nonisolated private static func focusSamples(
+        clipURL: URL,
+        duration: Double,
+        mode: AppSettings.FocusMode
+    ) async -> [FocusSample] {
+        switch mode {
+        case .speaker:
+            return await sampleFaces(clipURL: clipURL, duration: duration)
+        case .product:
+            return await sampleProducts(clipURL: clipURL, duration: duration)
+        case .auto:
+            async let products = sampleProducts(clipURL: clipURL, duration: duration)
+            async let faces = sampleFaces(clipURL: clipURL, duration: duration)
+            let productSamples = await products
+            if isTrackable(productSamples, minimumConfidence: productAutoThreshold) {
+                return productSamples
+            }
+            return await faces
+        }
+    }
+
+    nonisolated private static func isTrackable(
+        _ samples: [FocusSample],
+        minimumConfidence: Float = 0
+    ) -> Bool {
+        let usable = samples.filter {
+            $0.midX != nil && $0.confidence >= minimumConfidence
+        }.count
+        return !samples.isEmpty && Double(usable) / Double(samples.count) >= 0.4
     }
 
     nonisolated private static func largestFaceMidX(in cgImage: CGImage) -> CGFloat? {
@@ -135,7 +209,7 @@ enum VerticalReframer {
     /// Turns face samples into a smoothed sequence of crop-window centres, in the
     /// scaled render space. "Heavy tripod": the camera only pans when the subject
     /// leaves a safe zone, and never faster than a capped speed — no jitter.
-    private static func panPath(from samples: [Sample], orientedSize: CGSize) -> [Keyframe] {
+    private static func panPath(from samples: [FocusSample], orientedSize: CGSize) -> [Keyframe] {
         let scale = outH / orientedSize.height
         let scaledW = orientedSize.width * scale
         let cropMaxX = max(0, scaledW - outW)
@@ -312,7 +386,11 @@ enum VerticalReframer {
     /// The burned-in text hook is export-only and is intentionally not shown
     /// here. Returns nil when the clip isn't being reframed (play the raw clip).
     @MainActor
-    static func previewItem(clipURL: URL, reframe: Bool) async -> AVPlayerItem? {
+    static func previewItem(
+        clipURL: URL,
+        reframe: Bool,
+        focusMode: AppSettings.FocusMode = .speaker
+    ) async -> AVPlayerItem? {
         guard reframe else { return nil }
         let asset = AVURLAsset(url: clipURL)
         guard let videoTrack = try? await asset.loadTracks(withMediaType: .video).first,
@@ -324,11 +402,12 @@ enum VerticalReframer {
         let oriented = naturalSize.applying(transform)
         let orientedSize = CGSize(width: abs(oriented.width), height: abs(oriented.height))
 
-        let samples = await sampleFaces(clipURL: clipURL, duration: CMTimeGetSeconds(duration))
-        let withFace = samples.filter { $0.midX != nil }.count
-        let trackable = !samples.isEmpty && Double(withFace) / Double(samples.count) >= 0.4
+        let samples = await focusSamples(
+            clipURL: clipURL,
+            duration: CMTimeGetSeconds(duration),
+            mode: focusMode)
 
-        if trackable {
+        if isTrackable(samples) {
             let keyframes = panPath(from: samples, orientedSize: orientedSize)
             guard let (composition, vc) = try? await buildTracking(
                 asset: asset, videoTrack: videoTrack, duration: duration,

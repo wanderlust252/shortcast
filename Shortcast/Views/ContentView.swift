@@ -49,8 +49,10 @@ struct ContentView: View {
             ProcessingView()
         case .results:
             ResultsView()
-        case .transcribing, .findingMoments:
+        case .discoveringProducts, .transcribing, .findingMoments:
             ShortsProgressView()
+        case .choosingProduct:
+            ProductSelectionView()
         case .shortsResults:
             ShortsResultsView()
         }

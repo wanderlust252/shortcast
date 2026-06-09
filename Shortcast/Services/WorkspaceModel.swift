@@ -55,6 +55,8 @@ final class WorkspaceModel {
         case processing
         case results
         // Shorts flow:
+        case discoveringProducts
+        case choosingProduct
         case transcribing
         case findingMoments
         case shortsResults
@@ -69,6 +71,8 @@ final class WorkspaceModel {
 
     /// The generated shorts (long-video flow).
     var clips: [ShortClip] = []
+    var discoveredProducts: [ProductDiscoveryService.ProductOption] = []
+    var selectedProduct: ProductDiscoveryService.ProductOption?
 
     /// Owns transcription (sidecar `.srt`/`.vtt` or on-device WhisperKit).
     let transcription = TranscriptionService()
@@ -89,7 +93,7 @@ final class WorkspaceModel {
 
     var isBusy: Bool {
         switch phase {
-        case .processing, .transcribing, .findingMoments: return true
+        case .processing, .discoveringProducts, .transcribing, .findingMoments: return true
         default: return false
         }
     }
@@ -115,7 +119,7 @@ final class WorkspaceModel {
         case .caption:
             await processSingleVideo(job: newJob, modelManager: modelManager, settings: settings)
         case .shorts:
-            startShortsPipeline(job: newJob, modelManager: modelManager, settings: settings)
+            startProductDiscovery(job: newJob, modelManager: modelManager, settings: settings)
         }
     }
 
@@ -150,20 +154,76 @@ final class WorkspaceModel {
 
     // MARK: - Shorts flow
 
-    private func startShortsPipeline(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) {
+    private func startProductDiscovery(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) {
         cleanupClipTempFiles()
         job = newJob
         clips = []
         variants = []
+        discoveredProducts = []
+        selectedProduct = nil
         pipelineError = nil
-        phase = .transcribing
+        phase = .discoveringProducts
 
         pipelineTask = Task {
-            await self.runShortsPipeline(job: newJob, modelManager: modelManager, settings: settings)
+            do {
+                let products = try await ProductDiscoveryService.discoverProducts(videoURL: newJob.url)
+                try Task.checkCancellation()
+                self.discoveredProducts = products
+                self.phase = products.isEmpty ? .transcribing : .choosingProduct
+                if products.isEmpty {
+                    self.startShortsPipeline(
+                        job: newJob,
+                        modelManager: modelManager,
+                        settings: settings,
+                        product: nil)
+                }
+            } catch is CancellationError {
+                self.job = nil
+                self.phase = .empty
+            } catch {
+                Self.log("product discovery failed: \(error.localizedDescription)")
+                self.startShortsPipeline(
+                    job: newJob,
+                    modelManager: modelManager,
+                    settings: settings,
+                    product: nil)
+            }
         }
     }
 
-    private func runShortsPipeline(job: VideoJob, modelManager: ModelManager, settings: AppSettings) async {
+    func startShortsWithProduct(
+        _ product: ProductDiscoveryService.ProductOption?,
+        modelManager: ModelManager,
+        settings: AppSettings
+    ) {
+        guard let job else { return }
+        selectedProduct = product
+        startShortsPipeline(job: job, modelManager: modelManager, settings: settings, product: product)
+    }
+
+    private func startShortsPipeline(
+        job newJob: VideoJob,
+        modelManager: ModelManager,
+        settings: AppSettings,
+        product: ProductDiscoveryService.ProductOption?
+    ) {
+        phase = .transcribing
+
+        pipelineTask = Task {
+            await self.runShortsPipeline(
+                job: newJob,
+                modelManager: modelManager,
+                settings: settings,
+                product: product)
+        }
+    }
+
+    private func runShortsPipeline(
+        job: VideoJob,
+        modelManager: ModelManager,
+        settings: AppSettings,
+        product: ProductDiscoveryService.ProductOption?
+    ) async {
         let pipelineStart = Date()
         Self.log("pipeline start — copywriter=\(settings.copywriterModel.rawValue)")
         do {
@@ -180,36 +240,44 @@ final class WorkspaceModel {
             Self.log("transcript ready in \(Self.elapsed(since: t0)) — whisper=\(transcript.language ?? "?"), text=\(captionLanguage ?? "?"), output=\(outputLanguage ?? "?")")
             try Task.checkCancellation()
 
-            // 2. Find the viral moments — local MLX by default, or MiMo API if selected.
-            phase = .findingMoments
-            let t1 = Date()
-            if let profile = settings.copywriterModel.directorProfile {
-                await modelManager.prepareDirector(profile: profile)
-                Self.log("director ready in \(Self.elapsed(since: t1)) — \(profile.displayName)")
-            } else {
-                Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
-            }
-            let t2 = Date()
             let candidates: [ClipCandidate]
-            if settings.copywriterModel.usesRemoteMimo {
-                let mimo = MimoService(
-                    apiKey: settings.mimoAPIKey,
-                    modelID: settings.mimoModelID,
-                    baseURL: settings.mimoBaseURL)
-                candidates = try await mimo.findMoments(
-                    transcript: transcript.srtLike(),
-                    language: outputLanguage,
-                    styleExamples: settings.styleExamples)
+            if let product {
+                phase = .findingMoments
+                candidates = ProductDiscoveryService.candidates(
+                    for: product,
+                    videoDuration: job.durationSeconds)
+                Self.log("created \(candidates.count) product moment(s) for \(product.label)")
             } else {
-                // The two text models write the captions in this same pass.
-                let useInlineCaptions = settings.copywriterModel.usesInlineCaptions
-                candidates = try await modelManager.momentFinder.findMoments(
-                    transcript: transcript.srtLike(),
-                    includeCaptions: useInlineCaptions,
-                    language: outputLanguage,
-                    styleExamples: settings.styleExamples)
+                // 2. Find the viral moments — local MLX by default, or MiMo API if selected.
+                phase = .findingMoments
+                let t1 = Date()
+                if let profile = settings.copywriterModel.directorProfile {
+                    await modelManager.prepareDirector(profile: profile)
+                    Self.log("director ready in \(Self.elapsed(since: t1)) — \(profile.displayName)")
+                } else {
+                    Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
+                }
+                let t2 = Date()
+                if settings.copywriterModel.usesRemoteMimo {
+                    let mimo = MimoService(
+                        apiKey: settings.mimoAPIKey,
+                        modelID: settings.mimoModelID,
+                        baseURL: settings.mimoBaseURL)
+                    candidates = try await mimo.findMoments(
+                        transcript: transcript.srtLike(),
+                        language: outputLanguage,
+                        styleExamples: settings.styleExamples)
+                } else {
+                    // The two text models write the captions in this same pass.
+                    let useInlineCaptions = settings.copywriterModel.usesInlineCaptions
+                    candidates = try await modelManager.momentFinder.findMoments(
+                        transcript: transcript.srtLike(),
+                        includeCaptions: useInlineCaptions,
+                        language: outputLanguage,
+                        styleExamples: settings.styleExamples)
+                }
+                Self.log("found \(candidates.count) moment(s) in \(Self.elapsed(since: t2)), captions inline=\(settings.copywriterModel.usesInlineCaptions)")
             }
-            Self.log("found \(candidates.count) moment(s) in \(Self.elapsed(since: t2)), captions inline=\(settings.copywriterModel.usesInlineCaptions)")
             try Task.checkCancellation()
 
             // Seed cards; they fill in as each clip is cut + captioned.
@@ -217,7 +285,8 @@ final class WorkspaceModel {
                 ShortClip(candidate: $0,
                           transcriptSlice: transcript.slice(start: $0.start, end: $0.end),
                           overlayEnabled: settings.burnHookOverlay,
-                          reframeEnabled: settings.reframeToVertical)
+                          reframeEnabled: settings.reframeToVertical,
+                          focusMode: settings.focusMode)
             }
             phase = .shortsResults
 
@@ -345,6 +414,8 @@ final class WorkspaceModel {
         job = nil
         variants = []
         clips = []
+        discoveredProducts = []
+        selectedProduct = nil
         detectedLanguage = nil
         publishReport = nil
         publishError = nil

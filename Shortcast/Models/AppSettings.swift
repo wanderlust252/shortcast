@@ -96,6 +96,33 @@ final class AppSettings {
         }
     }
 
+    enum FocusMode: String, CaseIterable, Identifiable, Codable, Sendable {
+        case speaker
+        case product
+        case auto
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .speaker: "Face Tracking"
+            case .product: "Product Tracking"
+            case .auto:    "Auto (Product -> Face)"
+            }
+        }
+
+        var description: String {
+            switch self {
+            case .speaker:
+                "Tracks the largest face with Apple Vision."
+            case .product:
+                "Tracks supported product objects with the bundled Core ML detector."
+            case .auto:
+                "Prefers confident product detections, then falls back to face tracking."
+            }
+        }
+    }
+
     /// Upload-Post API key. Mirrored to `UserDefaults` on every change.
     var apiKey: String {
         didSet { persistAPIKey() }
@@ -202,6 +229,11 @@ final class AppSettings {
         didSet { defaults.set(reframeToVertical, forKey: Keys.reframe) }
     }
 
+    /// Default target used when reframing horizontal clips to 9:16.
+    var focusMode: FocusMode {
+        didSet { defaults.set(focusMode.rawValue, forKey: Keys.focusMode) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -246,6 +278,8 @@ final class AppSettings {
         self.burnHookOverlay = defaults.object(forKey: Keys.burnHook) as? Bool ?? true
         // Default on — horizontal clips should become vertical shorts.
         self.reframeToVertical = defaults.object(forKey: Keys.reframe) as? Bool ?? true
+        self.focusMode = defaults.string(forKey: Keys.focusMode)
+            .flatMap(FocusMode.init) ?? .speaker
     }
 
     /// True once the app has enough to publish.
@@ -319,6 +353,7 @@ final class AppSettings {
         static let copywriter  = "shortcast.copywriterModel"
         static let burnHook    = "shortcast.burnHookOverlay"
         static let reframe     = "shortcast.reframeToVertical"
+        static let focusMode   = "shortcast.focusMode"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.
         static let legacyApiKey = "upload-post-api-key"

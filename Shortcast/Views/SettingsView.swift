@@ -196,7 +196,25 @@ struct SettingsView: View {
 
             Section("Vertical reframing") {
                 Toggle("Auto-convert horizontal clips to vertical 9:16", isOn: $settings.reframeToVertical)
-                Text("Tracks the speaker with on-device Vision and reframes 16:9 → 9:16, falling back to a blurred background when there's no clear face. The default for new horizontal clips — you can flip it per clip. Applied when you publish.")
+                if settings.reframeToVertical {
+                    Picker("Focus tracking", selection: $settings.focusMode) {
+                        ForEach(AppSettings.FocusMode.allCases) { mode in
+                            Text(mode.displayName)
+                                .tag(mode)
+                                .disabled(mode != .speaker && !ProductFocusDetector.isModelBundled)
+                        }
+                    }
+                    Text(settings.focusMode.description)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    if !ProductFocusDetector.isModelBundled {
+                        Label("Product tracking needs ProductDetector in the app bundle.",
+                              systemImage: "cube.transparent")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                Text("Reframes 16:9 -> 9:16, falling back to a blurred background when there's no clear target. The default for new horizontal clips — you can flip it per clip. Applied when you publish.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

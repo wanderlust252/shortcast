@@ -37,6 +37,8 @@ final class ShortClip: Identifiable {
     /// Per-clip switch for reframing a horizontal clip to vertical 9:16 at
     /// publish time. Only takes effect when the cut clip is `isLandscape`.
     var reframeEnabled: Bool
+    /// Per-clip target used by the vertical reframer.
+    var focusMode: AppSettings.FocusMode
     /// Whether the cut clip is wider than tall. Set by the pipeline after cutting;
     /// gates both the reframe and the per-clip toggle's visibility.
     var isLandscape = false
@@ -49,7 +51,8 @@ final class ShortClip: Identifiable {
     private(set) var scheduledDate: Date?
 
     init(candidate: ClipCandidate, transcriptSlice: String,
-         overlayEnabled: Bool, reframeEnabled: Bool) {
+         overlayEnabled: Bool, reframeEnabled: Bool,
+         focusMode: AppSettings.FocusMode = .speaker) {
         self.candidate = candidate
         self.transcriptSlice = transcriptSlice
         // Prefer the model's short overlay hook; fall back to the caption hook.
@@ -57,6 +60,7 @@ final class ShortClip: Identifiable {
         self.overlayText = String(raw.prefix(60))
         self.overlayEnabled = overlayEnabled
         self.reframeEnabled = reframeEnabled
+        self.focusMode = focusMode
     }
 
     var isReadyToPublish: Bool {
@@ -84,7 +88,8 @@ final class ShortClip: Identifiable {
            let url = try await VerticalReframer.process(
                 clipURL: clipJob.url,
                 reframe: wantReframe,
-                overlayText: wantOverlay ? hook : nil) {
+                overlayText: wantOverlay ? hook : nil,
+                focusMode: focusMode) {
             return (url, true)
         }
         return (clipJob.url, false)
