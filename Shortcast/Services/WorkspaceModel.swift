@@ -3,7 +3,7 @@ import Observation
 
 /// Drives the main window's state machine. Two flows share it:
 ///  - short video → one set of editable variants → publish (the original path).
-///  - long video → transcribe → find moments → cut + caption N shorts → publish.
+///  - long video → transcribe → plan + render one highlight video.
 @MainActor
 @Observable
 final class WorkspaceModel {
@@ -11,7 +11,7 @@ final class WorkspaceModel {
     /// What the user wants to do with a dropped video. Chosen explicitly on the
     /// drop screen rather than guessed from the video's length.
     enum InputMode: String, CaseIterable, Identifiable, Sendable {
-        case shorts    // long video → cut into clips → caption each → publish
+        case shorts    // long video → render one educational highlight video
         case caption   // short video → captions → publish (the original flow)
 
         var id: String { rawValue }
@@ -19,34 +19,34 @@ final class WorkspaceModel {
         var title: String {
             switch self {
             case .caption: "Caption a short"
-            case .shorts:  "Make shorts from a long video"
+            case .shorts:  "Make highlight video"
             }
         }
 
         var dropTitle: String {
             switch self {
             case .caption: "Drop a short video here"
-            case .shorts:  "Drop a long video here"
+            case .shorts:  "Drop a lecture, podcast or interview here"
             }
         }
 
         var dropSubtitle: String {
             switch self {
             case .caption: "Up to 60 seconds — a TikTok, Reel or Short"
-            case .shorts:  "A podcast, talk or stream — we'll find the best moments and cut them"
+            case .shorts:  "We'll remove the rambling and render one 5-15 minute highlight"
             }
         }
 
         var symbol: String {
             switch self {
             case .caption: "film.stack"
-            case .shorts:  "scissors"
+            case .shorts:  "sparkles.tv"
             }
         }
     }
 
     /// The selected mode. Drives routing in `process(url:)`. Defaults to making
-    /// shorts from a long video — the app's headline flow.
+    /// a highlight from a long video — the app's headline flow.
     var inputMode: InputMode = .shorts
 
     enum Phase: Equatable {
@@ -54,9 +54,11 @@ final class WorkspaceModel {
         // Single-video flow:
         case processing
         case results
-        // Shorts flow:
+        // Long-video highlight flow:
         case transcribing
         case findingMoments
+        case renderingHighlight
+        case highlightResults
         case shortsResults
     }
 
@@ -67,8 +69,11 @@ final class WorkspaceModel {
     var variants: [PostVariant] = []
     private(set) var detectedLanguage: String?
 
-    /// The generated shorts (long-video flow).
+    /// Legacy generated shorts state, still used by the older per-clip helpers.
     var clips: [ShortClip] = []
+
+    /// The rendered long-video highlight.
+    var highlightVideo: HighlightVideo?
 
     /// Owns transcription (sidecar `.srt`/`.vtt` or on-device WhisperKit).
     let transcription = TranscriptionService()
@@ -89,7 +94,7 @@ final class WorkspaceModel {
 
     var isBusy: Bool {
         switch phase {
-        case .processing, .transcribing, .findingMoments: return true
+        case .processing, .transcribing, .findingMoments, .renderingHighlight: return true
         default: return false
         }
     }
@@ -152,8 +157,10 @@ final class WorkspaceModel {
 
     private func startShortsPipeline(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) {
         cleanupClipTempFiles()
+        cleanupHighlightTempFile()
         job = newJob
         clips = []
+        highlightVideo = nil
         variants = []
         pipelineError = nil
         phase = .transcribing
@@ -180,101 +187,49 @@ final class WorkspaceModel {
             Self.log("transcript ready in \(Self.elapsed(since: t0)) — whisper=\(transcript.language ?? "?"), text=\(captionLanguage ?? "?"), output=\(outputLanguage ?? "?")")
             try Task.checkCancellation()
 
-            // 2. Find the viral moments — local MLX by default, or MiMo API if selected.
+            // 2. Plan the knowledge highlight with MiMo.
             phase = .findingMoments
             let t1 = Date()
-            if let profile = settings.copywriterModel.directorProfile {
-                await modelManager.prepareDirector(profile: profile)
-                Self.log("director ready in \(Self.elapsed(since: t1)) — \(profile.displayName)")
-            } else {
-                Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
-            }
-            let t2 = Date()
-            let candidates: [ClipCandidate]
-            if settings.copywriterModel.usesRemoteMimo {
-                let mimo = MimoService(
-                    apiKey: settings.mimoAPIKey,
-                    modelID: settings.mimoModelID,
-                    baseURL: settings.mimoBaseURL)
-                candidates = try await mimo.findMoments(
-                    transcript: transcript.srtLike(),
-                    language: outputLanguage,
-                    styleExamples: settings.styleExamples)
-            } else {
-                // The two text models write the captions in this same pass.
-                let useInlineCaptions = settings.copywriterModel.usesInlineCaptions
-                candidates = try await modelManager.momentFinder.findMoments(
-                    transcript: transcript.srtLike(),
-                    includeCaptions: useInlineCaptions,
-                    language: outputLanguage,
-                    styleExamples: settings.styleExamples)
-            }
-            Self.log("found \(candidates.count) moment(s) in \(Self.elapsed(since: t2)), captions inline=\(settings.copywriterModel.usesInlineCaptions)")
+            Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
+            let plan = try await mimo.planHighlight(
+                transcript: transcript.srtLike(),
+                language: outputLanguage,
+                sourceDuration: job.durationSeconds)
+            Self.log("highlight plan ready in \(Self.elapsed(since: t1)) — \(plan.segments.count) segment(s), \(Int(plan.duration.rounded()))s")
             try Task.checkCancellation()
 
-            // Seed cards; they fill in as each clip is cut + captioned.
-            clips = candidates.map {
-                ShortClip(candidate: $0,
-                          transcriptSlice: transcript.slice(start: $0.start, end: $0.end),
-                          overlayEnabled: settings.burnHookOverlay,
-                          reframeEnabled: settings.reframeToVertical)
-            }
-            phase = .shortsResults
-
-            // On tight RAM, free the Director before the Gemma E4B clip-watcher.
-            if settings.copywriterModel.watchesClips {
-                modelManager.freeDirectorIfMemoryTight()
-            }
-
-            // 3+4. Cut, then caption, each clip in turn (one MLX engine → serial).
-            for (index, clip) in clips.enumerated() {
-                try Task.checkCancellation()
-                do {
-                    clip.stage = .cutting
-                    let tCut = Date()
-                    let clipURL = try await MediaExtractor.cutClip(
-                        from: job.url,
-                        start: clip.candidate.start,
-                        duration: clip.candidate.duration)
-                    clip.clipJob = VideoJob(url: clipURL, durationSeconds: clip.candidate.duration)
-                    // Only horizontal clips get the vertical-reframe option.
-                    clip.isLandscape = await VerticalReframer.isLandscape(url: clipURL)
-
-                    if !clip.candidate.variants.isEmpty {
-                        // Captions already came from the Director's one pass.
-                        clip.variants = clip.candidate.variants
-                        clip.detectedLanguage = outputLanguage
-                        clip.stage = .ready
-                        Self.log("clip \(index + 1)/\(clips.count) ready — cut \(Self.elapsed(since: tCut)), captions inline")
-                    } else {
-                        clip.stage = .captioning
-                        let tCap = Date()
-                        let result = try await captionClip(
-                            clip, modelManager: modelManager, settings: settings,
-                            transcriptLanguage: captionLanguage)
-                        clip.variants = result.variants
-                        clip.detectedLanguage = result.detectedLanguage
-                        clip.stage = .ready
-                        Self.log("clip \(index + 1)/\(clips.count) ready — cut \(Self.elapsed(since: tCut, to: tCap)), caption \(Self.elapsed(since: tCap))")
-                    }
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    clip.stage = .failed(error.localizedDescription)
-                    Self.log("clip \(index + 1)/\(clips.count) failed: \(error.localizedDescription)")
-                }
-            }
-            Self.log("pipeline done — \(clips.count) clip(s) in \(Self.elapsed(since: pipelineStart)) total")
+            // 3. Render one highlight video from the selected ranges.
+            phase = .renderingHighlight
+            let t2 = Date()
+            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue)")
+            let outputURL = try await MediaExtractor.renderHighlight(
+                from: job.url,
+                segments: plan.segments,
+                aspectMode: settings.highlightAspectMode)
+            highlightVideo = HighlightVideo(
+                plan: plan,
+                url: outputURL,
+                aspectMode: settings.highlightAspectMode,
+                durationSeconds: plan.duration)
+            phase = .highlightResults
+            Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
             cleanupClipTempFiles()
+            cleanupHighlightTempFile()
             clips = []
+            highlightVideo = nil
             self.job = nil
             phase = .empty
         } catch {
             pipelineError = error.localizedDescription
-            errorMessage = "Couldn't make shorts from that video. \(error.localizedDescription)"
+            errorMessage = "Couldn't make a highlight from that video. \(error.localizedDescription)"
             self.job = nil
             clips = []
+            highlightVideo = nil
             phase = .empty
         }
     }
@@ -342,9 +297,11 @@ final class WorkspaceModel {
     func startOver() {
         pipelineTask?.cancel()
         cleanupClipTempFiles()
+        cleanupHighlightTempFile()
         job = nil
         variants = []
         clips = []
+        highlightVideo = nil
         detectedLanguage = nil
         publishReport = nil
         publishError = nil
@@ -358,6 +315,12 @@ final class WorkspaceModel {
             if let url = clip.clipJob?.url {
                 try? FileManager.default.removeItem(at: url)
             }
+        }
+    }
+
+    private func cleanupHighlightTempFile() {
+        if let url = highlightVideo?.url {
+            try? FileManager.default.removeItem(at: url)
         }
     }
 

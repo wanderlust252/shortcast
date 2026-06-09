@@ -52,6 +52,30 @@ struct MimoService: Sendable {
         return clips
     }
 
+    func planHighlight(
+        transcript: String,
+        language: String?,
+        sourceDuration: Double
+    ) async throws -> HighlightPlan {
+        let raw = try await complete(
+            system: Self.highlightSystemPrompt(language: language),
+            user: """
+            Source duration: \(Int(sourceDuration.rounded())) seconds
+
+            Timestamped transcript:
+
+            \(transcript)
+
+            Return the highlight plan JSON.
+            """,
+            maxTokens: 8192,
+            temperature: 0.35,
+            topP: 0.9)
+        let plan = HighlightPlanJSONParser.parse(raw, sourceDuration: sourceDuration)
+        guard !plan.segments.isEmpty else { throw MomentFinderError.noClips }
+        return plan
+    }
+
     func caption(
         transcriptSlice: String,
         hook: String,
@@ -137,6 +161,120 @@ struct MimoService: Sendable {
             return Self.defaultTokenPlanBaseURL
         }
         return Self.payAsYouGoBaseURL
+    }
+
+    private static func highlightSystemPrompt(language: String?) -> String {
+        let lang = (language ?? "").trimmed
+        let languageRule = lang.isEmpty
+            ? "Write title, summary, segment titles, and why fields in the same language spoken in the transcript."
+            : "Write title, summary, segment titles, and why fields in this language: \(lang)."
+
+        return """
+        You are an expert educational video editor. You receive a timestamped \
+        transcript from a long lecture, podcast, presentation, or interview. \
+        Your job is to create an edit decision list for ONE coherent highlight \
+        video, not a set of shorts.
+
+        Goal:
+        - Make a 5 to 15 minute highlight video.
+        - Preserve the strongest knowledge path: opening context, core concepts, \
+        concrete examples, key warnings, and takeaways.
+        - Remove slow delivery, repetition, filler, greetings, sponsorships, \
+        long pauses, and rambling.
+        - Keep each selected segment as a complete idea. Never cut mid-sentence.
+        - Order segments by the best learning flow, usually chronological unless \
+        moving a later segment earlier makes the mini-lesson clearer.
+        - \(languageRule)
+
+        Return ONLY valid JSON, with no markdown, no prose, using this shape:
+        {
+          "title": "short title for the highlight",
+          "summary": "1-2 sentence summary of what the highlight teaches",
+          "segments": [
+            {
+              "start": "MM:SS or HH:MM:SS",
+              "end": "MM:SS or HH:MM:SS",
+              "title": "what this segment teaches",
+              "why": "why this segment belongs in the highlight"
+            }
+          ]
+        }
+
+        Segment rules:
+        - Prefer 6 to 14 segments.
+        - Individual segments should usually be 20 to 180 seconds.
+        - Total selected duration should be 300 to 900 seconds.
+        - Do not invent content outside the transcript.
+        """
+    }
+}
+
+enum HighlightPlanJSONParser {
+    static let minSegmentDuration = 8.0
+    static let maxSegmentDuration = 240.0
+    static let maxTotalDuration = 15 * 60.0
+
+    static func parse(_ raw: String, sourceDuration: Double) -> HighlightPlan {
+        guard let jsonString = JSONVariantParser.extractJSONObject(from: raw),
+              let root = JSONVariantParser.deserializeTolerant(jsonString) as? [String: Any]
+        else {
+            return HighlightPlan(title: "Highlight", summary: "", segments: [])
+        }
+
+        let title = string(root, "title", "headline").trimmed
+        let summary = string(root, "summary", "description").trimmed
+        let entries = (root["segments"] as? [[String: Any]])
+            ?? (root["clips"] as? [[String: Any]])
+            ?? []
+
+        var total = 0.0
+        var usedRanges: [(start: Double, end: Double)] = []
+        var segments: [HighlightSegment] = []
+
+        for entry in entries {
+            guard let rawStart = MomentJSONParser.seconds(from: entry["start"]),
+                  let rawEnd = MomentJSONParser.seconds(from: entry["end"])
+            else { continue }
+
+            let start = min(max(rawStart, 0), max(sourceDuration, 0))
+            let end = min(max(rawEnd, start), max(sourceDuration, start))
+            guard end > start else { continue }
+            guard end - start >= minSegmentDuration else { continue }
+            guard !usedRanges.contains(where: { rangesOverlap(start, end, $0.start, $0.end) }) else {
+                continue
+            }
+
+            let cappedEnd = min(end, start + maxSegmentDuration)
+            let duration = cappedEnd - start
+            guard total + duration <= maxTotalDuration + 1 else { break }
+
+            segments.append(HighlightSegment(
+                start: start,
+                end: cappedEnd,
+                title: string(entry, "title", "hook", "topic"),
+                why: string(entry, "why", "reason", "rationale")))
+            usedRanges.append((start, cappedEnd))
+            total += duration
+        }
+
+        return HighlightPlan(
+            title: title.isEmpty ? "Highlight" : title,
+            summary: summary,
+            segments: segments)
+    }
+
+    private static func string(_ entry: [String: Any], _ keys: String...) -> String {
+        for key in keys {
+            if let value = (entry[key] as? String)?.trimmed, !value.isEmpty {
+                return value
+            }
+        }
+        return ""
+    }
+
+    private static func rangesOverlap(_ aStart: Double, _ aEnd: Double,
+                                      _ bStart: Double, _ bEnd: Double) -> Bool {
+        aStart < bEnd && bStart < aEnd
     }
 }
 

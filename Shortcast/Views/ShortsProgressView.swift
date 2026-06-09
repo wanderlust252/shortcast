@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The long-video pipeline progress screen. Shows the source video in a
+/// The long-video highlight pipeline progress screen. Shows the source video in a
 /// cinematic, aspect-correct frame (no weird phone crop for horizontal video)
 /// with a sweeping "scanner" and a filmstrip that lights up cell by cell — so it
 /// reads as the AI watching the timeline and cutting the best moments.
@@ -55,7 +55,9 @@ struct ShortsProgressView: View {
             default:                return "Transcribing your video…"
             }
         case .findingMoments:
-            return "Finding the best moments…"
+            return "Planning the highlight…"
+        case .renderingHighlight:
+            return "Rendering the highlight…"
         default:
             return "Working…"
         }
@@ -70,7 +72,9 @@ struct ShortsProgressView: View {
             default:                       return "Reading the whole timeline."
             }
         case .findingMoments:
-            return "Qwen 3.5 9B is scanning the transcript — this can take a few minutes."
+            return "MiMo is reading the transcript and choosing the strongest learning path."
+        case .renderingHighlight:
+            return "Cutting the selected sections and joining them into one video."
         default:
             return nil
         }

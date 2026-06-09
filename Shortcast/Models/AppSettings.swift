@@ -202,6 +202,11 @@ final class AppSettings {
         didSet { defaults.set(reframeToVertical, forKey: Keys.reframe) }
     }
 
+    /// Output aspect ratio for the long-video highlight renderer.
+    var highlightAspectMode: HighlightAspectMode {
+        didSet { defaults.set(highlightAspectMode.rawValue, forKey: Keys.highlightAspect) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -246,6 +251,8 @@ final class AppSettings {
         self.burnHookOverlay = defaults.object(forKey: Keys.burnHook) as? Bool ?? true
         // Default on — horizontal clips should become vertical shorts.
         self.reframeToVertical = defaults.object(forKey: Keys.reframe) as? Bool ?? true
+        self.highlightAspectMode = defaults.string(forKey: Keys.highlightAspect)
+            .flatMap(HighlightAspectMode.init) ?? .vertical
     }
 
     /// True once the app has enough to publish.
@@ -319,6 +326,7 @@ final class AppSettings {
         static let copywriter  = "shortcast.copywriterModel"
         static let burnHook    = "shortcast.burnHookOverlay"
         static let reframe     = "shortcast.reframeToVertical"
+        static let highlightAspect = "shortcast.highlight.aspectMode"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.
         static let legacyApiKey = "upload-post-api-key"

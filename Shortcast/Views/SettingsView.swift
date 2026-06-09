@@ -140,7 +140,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("How a long video becomes shorts") {
+            Section("How a long video becomes a highlight") {
                 pipelineRole(
                     step: "1", icon: "waveform",
                     title: "Transcribe",
@@ -149,16 +149,27 @@ struct SettingsView: View {
                     status: nil)
                 pipelineRole(
                     step: "2", icon: "wand.and.stars",
-                    title: "Find the viral moments",
-                    model: settings.copywriterModel.directorDisplayName,
-                    detail: "Reads the whole transcript and picks the best clips. Follows your model choice below.",
-                    status: selectedDirectorStatus)
+                    title: "Plan the highlight",
+                    model: "MiMo API",
+                    detail: "Reads the timestamped transcript and returns the sections for one coherent 5-15 minute edit.",
+                    status: settings.mimoAPIKey.trimmed.isEmpty ? "Needs API key" : "Remote API")
                 pipelineRole(
-                    step: "3", icon: "text.bubble",
-                    title: "Write the captions",
-                    model: settings.copywriterModel.displayName,
-                    detail: "You choose this one ↓",
-                    status: selectedCaptionStatus)
+                    step: "3", icon: "film",
+                    title: "Render",
+                    model: settings.highlightAspectMode.displayName,
+                    detail: "Cuts the selected source ranges and joins them into one downloadable video.",
+                    status: nil)
+            }
+
+            Section("Highlight output") {
+                Picker("Aspect ratio", selection: $settings.highlightAspectMode) {
+                    ForEach(HighlightAspectMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                Text("Vertical 9:16 is ready for social posting. Original ratio preserves slides and wide interview framing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Caption writer") {
@@ -170,7 +181,7 @@ struct SettingsView: View {
                 Text(settings.copywriterModel.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Picks the model that finds the moments and writes the captions for shorts cut from a long video. MiMo replaces the local Director/copywriter for this long-video flow. Captioning a single short video always uses Gemma E4B (it watches the clip directly).")
+                Text("Used by the legacy shorts helpers and captioning paths. The long-video highlight planner always uses MiMo.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if settings.copywriterModel.usesRemoteMimo && settings.mimoAPIKey.trimmed.isEmpty {

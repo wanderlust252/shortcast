@@ -7,10 +7,12 @@ struct DropZoneView: View {
     let isDropTargeted: Bool
     let onChooseFile: (URL) -> Void
 
+    @Environment(AppSettings.self) private var settings
     @Environment(WorkspaceModel.self) private var workspace
     @State private var showingImporter = false
 
     var body: some View {
+        @Bindable var settings = settings
         @Bindable var workspace = workspace
 
         VStack(spacing: 18) {
@@ -25,6 +27,17 @@ struct DropZoneView: View {
             .labelsHidden()
             .frame(maxWidth: 460)
 
+            if workspace.inputMode == .shorts {
+                Picker("Aspect ratio", selection: $settings.highlightAspectMode) {
+                    ForEach(HighlightAspectMode.allCases) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 320)
+            }
+
             dropArea
 
             if let error = workspace.errorMessage {
@@ -37,7 +50,7 @@ struct DropZoneView: View {
 
             Spacer()
 
-            Text("Everything runs on your Mac. Your video is never uploaded until you press Publish.")
+            Text("The video stays on your Mac. For highlights, the timestamped transcript is sent to MiMo to plan the edit.")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }

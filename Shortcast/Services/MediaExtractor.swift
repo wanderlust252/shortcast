@@ -101,4 +101,118 @@ enum MediaExtractor {
         }
         throw MediaExtractorError.clipExportFailed("no usable export preset")
     }
+
+    /// Builds one highlight video by concatenating selected ranges from the
+    /// source. Keeps source aspect ratio for `.original`; renders a centered
+    /// 1080x1920 crop for `.vertical`.
+    static func renderHighlight(
+        from url: URL,
+        segments: [HighlightSegment],
+        aspectMode: HighlightAspectMode
+    ) async throws -> URL {
+        let asset = AVURLAsset(url: url)
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+            throw MediaExtractorError.noVideoTrack
+        }
+        let sourceDuration = CMTimeGetSeconds(try await asset.load(.duration))
+        let audioTrack = try await asset.loadTracks(withMediaType: .audio).first
+        let transform = try await videoTrack.load(.preferredTransform)
+        let naturalSize = try await videoTrack.load(.naturalSize)
+
+        let composition = AVMutableComposition()
+        guard let compVideo = composition.addMutableTrack(
+            withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+        else { throw MediaExtractorError.clipExportFailed("no video track") }
+        compVideo.preferredTransform = transform
+
+        let compAudio = audioTrack.flatMap { _ in
+            composition.addMutableTrack(
+                withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+        }
+
+        var destination = CMTime.zero
+        var insertedRanges: [(start: CMTime, duration: CMTime)] = []
+        for segment in segments {
+            let startSeconds = min(max(segment.start, 0), sourceDuration)
+            let endSeconds = min(max(segment.end, startSeconds), sourceDuration)
+            guard endSeconds - startSeconds >= 0.5 else { continue }
+
+            let range = CMTimeRange(
+                start: CMTime(seconds: startSeconds, preferredTimescale: 600),
+                duration: CMTime(seconds: endSeconds - startSeconds, preferredTimescale: 600))
+            try compVideo.insertTimeRange(range, of: videoTrack, at: destination)
+            if let audioTrack, let compAudio {
+                try? compAudio.insertTimeRange(range, of: audioTrack, at: destination)
+            }
+            insertedRanges.append((destination, range.duration))
+            destination = destination + range.duration
+        }
+        guard destination.seconds > 0 else {
+            throw MediaExtractorError.clipExportFailed("no usable highlight segments")
+        }
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("shortcast-highlight-\(UUID().uuidString).mp4")
+
+        let videoComposition: AVMutableVideoComposition?
+        switch aspectMode {
+        case .original:
+            videoComposition = nil
+        case .vertical:
+            videoComposition = makeVerticalComposition(
+                compositionTrack: compVideo,
+                insertedRanges: insertedRanges,
+                naturalSize: naturalSize,
+                transform: transform)
+        }
+
+        for preset in [AVAssetExportPresetHighestQuality, AVAssetExportPresetPassthrough] {
+            guard let export = AVAssetExportSession(asset: composition, presetName: preset) else {
+                continue
+            }
+            export.videoComposition = videoComposition
+            do {
+                try await export.export(to: outputURL, as: .mp4)
+                return outputURL
+            } catch {
+                try? FileManager.default.removeItem(at: outputURL)
+                if preset == AVAssetExportPresetPassthrough {
+                    throw MediaExtractorError.clipExportFailed(error.localizedDescription)
+                }
+            }
+        }
+        throw MediaExtractorError.clipExportFailed("no usable export preset")
+    }
+
+    private static func makeVerticalComposition(
+        compositionTrack: AVCompositionTrack,
+        insertedRanges: [(start: CMTime, duration: CMTime)],
+        naturalSize: CGSize,
+        transform: CGAffineTransform
+    ) -> AVMutableVideoComposition {
+        let renderSize = CGSize(width: 1080, height: 1920)
+        let oriented = naturalSize.applying(transform)
+        let orientedSize = CGSize(width: abs(oriented.width), height: abs(oriented.height))
+        let scale = max(renderSize.width / orientedSize.width, renderSize.height / orientedSize.height)
+        let scaledSize = CGSize(width: orientedSize.width * scale, height: orientedSize.height * scale)
+        let translate = CGAffineTransform(
+            translationX: (renderSize.width - scaledSize.width) / 2,
+            y: (renderSize.height - scaledSize.height) / 2)
+        let finalTransform = transform
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(translate)
+
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = renderSize
+        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+        videoComposition.instructions = insertedRanges.map { range in
+            let instruction = AVMutableVideoCompositionInstruction()
+            instruction.timeRange = CMTimeRange(start: range.start, duration: range.duration)
+            let layer = AVMutableVideoCompositionLayerInstruction(assetTrack: compositionTrack)
+            layer.setTransform(finalTransform, at: range.start)
+            instruction.layerInstructions = [layer]
+            return instruction
+        }
+        return videoComposition
+    }
 }
