@@ -46,11 +46,19 @@ public final class Gemma4Engine: @unchecked Sendable {
     /// Soft tokens emitted per still image (Gemma 4 reference value).
     private static let imageSoftTokens = 280
 
-    public let model: Gemma4Pipeline.Model
+    public let model: Gemma4Pipeline.Model?
+    public let modelID: String
     private let container: ModelContainer
 
     private init(model: Gemma4Pipeline.Model, container: ModelContainer) {
         self.model = model
+        self.modelID = model.rawValue
+        self.container = container
+    }
+
+    private init(modelID: String, container: ModelContainer) {
+        self.model = nil
+        self.modelID = modelID
         self.container = container
     }
 
@@ -75,6 +83,28 @@ public final class Gemma4Engine: @unchecked Sendable {
         await Gemma4Registration.register(multimodal: true)
         let container = try await loadModelContainer(from: path, using: Gemma4TokenizerLoader())
         return Gemma4Engine(model: model, container: container)
+    }
+
+    /// Prepares a Gemma 4 model addressed by HuggingFace id. This is used by
+    /// app-level model catalogs that may include profiles not represented in the
+    /// static `Gemma4Pipeline.Model` enum yet.
+    public static func prepare(
+        modelID: String,
+        hfToken: String? = nil,
+        onStage: (@Sendable (Stage) -> Void)? = nil
+    ) async throws -> Gemma4Engine {
+        if !Gemma4ModelCache.isDownloaded(modelId: modelID) {
+            _ = try await Gemma4ModelDownloader.download(modelId: modelID, token: hfToken) { progress in
+                onStage?(.downloading(progress))
+            }
+        }
+        guard let path = Gemma4ModelCache.possibleDownloadedPath(for: modelID) else {
+            throw Gemma4PipelineError.modelNotDownloaded(modelID)
+        }
+        onStage?(.loading)
+        await Gemma4Registration.register(multimodal: true)
+        let container = try await loadModelContainer(from: path, using: Gemma4TokenizerLoader())
+        return Gemma4Engine(modelID: modelID, container: container)
     }
 
     // MARK: - Generation

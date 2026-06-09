@@ -164,13 +164,13 @@ struct SettingsView: View {
             Section("Caption writer") {
                 Picker("Model", selection: $settings.copywriterModel) {
                     ForEach(AppSettings.CopywriterModel.allCases) { model in
-                        Text(model.displayName).tag(model)
+                        Text(modelPickerLabel(model)).tag(model)
                     }
                 }
                 Text(settings.copywriterModel.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Picks the model that finds the moments and writes the captions for shorts cut from a long video. MiMo replaces the local Director/copywriter for this long-video flow. Captioning a single short video always uses Gemma E4B (it watches the clip directly).")
+                Text("Picks the model that finds the moments and writes the captions for shorts cut from a long video. MiMo replaces the local Director/copywriter for this long-video flow. Captioning a single short video uses the selected Gemma multimodal clip-watcher.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if settings.copywriterModel.usesRemoteMimo && settings.mimoAPIKey.trimmed.isEmpty {
@@ -315,6 +315,12 @@ struct SettingsView: View {
         }
     }
 
+    private func modelPickerLabel(_ model: AppSettings.CopywriterModel) -> String {
+        guard let profile = model.localProfile else { return model.displayName }
+        let ram = profile.recommendedRAMGB > 0 ? " · \(profile.recommendedRAMGB) GB RAM" : ""
+        return "\(model.displayName) · \(profile.quantizationLabel)\(ram)"
+    }
+
     private var directorStatus: String {
         switch modelManager.momentFinder.phase {
         case .idle:                        "Loads on first long video"
@@ -326,7 +332,7 @@ struct SettingsView: View {
     }
 
     private var selectedDirectorStatus: String {
-        settings.copywriterModel.usesRemoteMimo ? "Remote API" : directorStatus
+        return settings.copywriterModel.usesRemoteMimo ? "Remote API" : directorStatus
     }
 
     private var selectedCaptionStatus: String {

@@ -39,8 +39,8 @@ play with sound, edit, download, publish, or **schedule one-per-day across the w
 ### ✏️ Caption a short
 
 Already have a short vertical clip? Drop it and Shortcast **watches the frames and hears
-the audio** (Gemma 4 E4B, multimodal) and writes the three platform captions directly,
-rendered as editable phone-style previews.
+the audio** with the selected Gemma multimodal clip-watcher (E4B 4-bit by default) and
+writes the three platform captions directly, rendered as editable phone-style previews.
 
 What's different about Shortcast:
 
@@ -157,8 +157,9 @@ button often doesn't appear for unsigned apps — use the Terminal command inste
 ### First run
 
 - Shortcast downloads the models it needs on first use, with a visible progress bar:
-  the **Director** (Gemma 4 12B ≈ 7 GB, or Qwen 3.5 9B ≈ 5 GB) and **WhisperKit
-  large-v3** for transcription. Happens once, then it works offline.
+  the **Director** (Gemma 4 12B ≈ 7 GB, or Qwen 3.5 9B ≈ 5 GB), the selected
+  **Gemma multimodal clip-watcher** (E4B 4-bit ≈ 5 GB by default), and
+  **WhisperKit large-v3** for transcription. Happens once, then it works offline.
 - Open **Settings** (⌘,) and choose a publishing provider. Upload-Post needs an
   [Upload-Post](https://upload-post.com) **API key** and **profile name**. TikTok
   official API needs a TikTok user access token; see
@@ -240,7 +241,8 @@ to their provider over HTTPS when needed. They are never written into the reposi
 
 - The **Director** runs a large model on-device. On an M1 Pro, a ~2-minute video takes a
   few minutes end-to-end (transcription + generation). Faster Macs (M3/M4) are quicker.
-- *Caption a short* uses Gemma 4 E4B, whose audio encoder hears the **first 30 seconds**.
+- *Caption a short* uses the selected Gemma multimodal clip-watcher, whose audio encoder
+  hears the **first 30 seconds**.
 - The app is **unsigned** (see *Install*). Code signing + notarization will come once the
   project stabilises.
 - One video at a time — no history, no batch processing. By design, for now.

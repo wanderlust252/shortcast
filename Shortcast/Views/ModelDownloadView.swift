@@ -25,9 +25,9 @@ struct ModelDownloadView: View {
             statusCard
                 .frame(maxWidth: 460)
 
-            if !modelManager.hasEnoughRAM {
+            if !modelManager.hasEnoughRAM && modelManager.recommendedRAMGB > 0 {
                 Label(
-                    "This Mac has \(modelManager.systemRAMGB) GB of memory. Gemma 4 E4B works best with \(modelManager.recommendedRAMGB) GB or more — it may run slowly.",
+                    "This Mac has \(modelManager.systemRAMGB) GB of memory. \(modelManager.multimodalDisplayName) works best with \(modelManager.recommendedRAMGB) GB or more — it may run slowly.",
                     systemImage: "exclamationmark.triangle")
                     .font(.callout)
                     .foregroundStyle(.orange)
@@ -37,7 +37,7 @@ struct ModelDownloadView: View {
 
             Spacer()
 
-            Text("The model downloads once (~\(modelManager.estimatedDownloadGB) GB). After that, Shortcast never sends your videos anywhere.")
+            Text("The model downloads once (~\(modelManager.estimatedDownloadGB) GB, \(modelManager.multimodalQuantizationLabel)). After that, Shortcast never sends your videos anywhere.")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -55,7 +55,7 @@ struct ModelDownloadView: View {
         case .downloading(let fraction, let detail):
             card {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Downloading Gemma 4 E4B")
+                    Text("Downloading \(modelManager.multimodalDisplayName)")
                         .font(.headline)
                     ProgressView(value: fraction)
                     Text(detail)
@@ -79,7 +79,9 @@ struct ModelDownloadView: View {
                         .multilineTextAlignment(.center)
                     Button("Try again") {
                         modelManager.resetForRetry()
-                        Task { await modelManager.prepareIfNeeded() }
+                        Task {
+                            await modelManager.prepareIfNeeded(profile: modelManager.activeMultimodalProfile)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                 }

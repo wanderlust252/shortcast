@@ -15,7 +15,7 @@ struct ShortcastApp: App {
                 .environment(workspace)
                 .task {
                     // Kick off the first-run download / model load.
-                    await modelManager.prepareIfNeeded()
+                    await modelManager.prepareIfNeeded(profile: settings.copywriterModel.multimodalProfile)
                 }
         }
         .windowResizability(.contentMinSize)

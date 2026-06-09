@@ -8,8 +8,8 @@ import Observation
 @Observable
 final class ModelManager {
 
-    /// The model Shortcast ships with: Gemma 4 E4B, 4-bit (~5 GB).
-    static let model: Gemma4Pipeline.Model = .e4b4bit
+    /// The model Shortcast ships with for video/audio captioning.
+    static let defaultMultimodalProfile = LocalModelProfile.gemmaE4B
 
     enum Phase: Equatable {
         case idle
@@ -21,6 +21,8 @@ final class ModelManager {
 
     private(set) var phase: Phase = .idle
     private(set) var engine: Gemma4Engine?
+    private(set) var activeMultimodalProfile = LocalModelProfile.gemmaE4B
+    private var loadedMultimodalProfileID: String?
 
     /// The "Director" — Qwen 3.5 9B, finds viral moments from a transcript.
     /// Loaded lazily on the first long-video drop, not at app launch.
@@ -29,10 +31,14 @@ final class ModelManager {
     // MARK: - Environment facts
 
     var systemRAMGB: Int { Gemma4ModelCache.systemRAMGB }
-    var recommendedRAMGB: Int { Self.model.recommendedRAMGB }
+    var recommendedRAMGB: Int { activeMultimodalProfile.recommendedRAMGB }
     var hasEnoughRAM: Bool { systemRAMGB >= recommendedRAMGB }
-    var isModelDownloaded: Bool { Gemma4ModelCache.isDownloaded(Self.model) }
-    var estimatedDownloadGB: Int { Int(Self.model.estimatedSizeGB.rounded()) }
+    var isModelDownloaded: Bool {
+        Gemma4ModelCache.isDownloaded(modelId: activeMultimodalProfile.modelID)
+    }
+    var estimatedDownloadGB: Int { Int(activeMultimodalProfile.estimatedDownloadGB.rounded(.up)) }
+    var multimodalDisplayName: String { activeMultimodalProfile.displayName }
+    var multimodalQuantizationLabel: String { activeMultimodalProfile.quantizationLabel }
 
     /// True when there's room to keep both Gemma and Qwen resident at once.
     /// Below this we load them sequentially (free the Director before Gemma
@@ -51,12 +57,26 @@ final class ModelManager {
 
     /// Downloads (if needed) and loads the model. Safe to call repeatedly — it
     /// no-ops once the engine is ready or while work is already in flight.
-    func prepareIfNeeded() async {
-        guard engine == nil, !isBusy else { return }
+    func prepareIfNeeded(profile: LocalModelProfile = LocalModelProfile.gemmaE4B) async {
+        guard !isBusy else { return }
+        guard profile.role == .multimodalCopywriter else {
+            phase = .failed("Only multimodal copywriter profiles can be loaded for video captioning.")
+            return
+        }
+        activeMultimodalProfile = profile
+        let modelID = profile.modelID
+        if let engine, loadedMultimodalProfileID == profile.id, engine.modelID == modelID {
+            phase = .ready
+            return
+        }
+        if loadedMultimodalProfileID != profile.id {
+            engine = nil
+            loadedMultimodalProfileID = nil
+        }
         phase = isModelDownloaded ? .loading : .downloading(fraction: 0, detail: "Starting…")
 
         do {
-            let prepared = try await Gemma4Engine.prepare(model: Self.model) { [weak self] stage in
+            let prepared = try await Gemma4Engine.prepare(modelID: modelID) { [weak self] stage in
                 Task { @MainActor in
                     guard let self else { return }
                     switch stage {
@@ -70,8 +90,10 @@ final class ModelManager {
                 }
             }
             engine = prepared
+            loadedMultimodalProfileID = profile.id
             phase = .ready
         } catch {
+            loadedMultimodalProfileID = nil
             phase = .failed(error.localizedDescription)
         }
     }

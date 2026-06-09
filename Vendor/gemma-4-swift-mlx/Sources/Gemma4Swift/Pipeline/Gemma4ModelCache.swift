@@ -42,6 +42,11 @@ public enum Gemma4ModelCache {
         possiblePaths(for: model.rawValue).first { hasModelFiles(at: $0) }
     }
 
+    /// Local path for an arbitrary HuggingFace model id, if cached.
+    public static func possibleDownloadedPath(for modelId: String) -> URL? {
+        possiblePaths(for: modelId).first { hasModelFiles(at: $0) }
+    }
+
     /// Taille sur disque d'un modele telecharge (en octets), nil si non telecharge
     public static func diskSize(for model: Gemma4Pipeline.Model) -> Int64? {
         guard let path = localPath(for: model) else { return nil }

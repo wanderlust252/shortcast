@@ -122,6 +122,7 @@ final class WorkspaceModel {
     // MARK: - Single-video flow (unchanged behaviour)
 
     private func processSingleVideo(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) async {
+        await modelManager.prepareIfNeeded(profile: settings.copywriterModel.multimodalProfile)
         guard let engine = modelManager.engine else {
             errorMessage = "The model is still getting ready — give it a moment, then drop the video again."
             return
@@ -289,6 +290,7 @@ final class WorkspaceModel {
 
         switch settings.copywriterModel {
         case .gemmaE4B:
+            await modelManager.prepareIfNeeded(profile: settings.copywriterModel.multimodalProfile)
             guard let engine = modelManager.engine, let clipJob = clip.clipJob else {
                 throw MomentFinderError.notReady
             }

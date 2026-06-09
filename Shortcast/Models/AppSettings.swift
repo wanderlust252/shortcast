@@ -41,15 +41,31 @@ final class AppSettings {
             }
         }
 
+        var localProfile: LocalModelProfile? {
+            switch self {
+            case .gemma12B:  return .gemma12B
+            case .qwen35_9b: return .qwen35_9b
+            case .gemmaE4B:  return .gemmaE4B
+            case .mimo:      return nil
+            }
+        }
+
         /// The text model that finds the moments. The two inline options are
         /// their own Director; the clip-watching option still needs a Director,
         /// for which we use the default (Gemma 4 12B).
         var directorProfile: ChatModelProfile? {
             switch self {
-            case .qwen35_9b:           return .qwen35_9b
-            case .gemma12B, .gemmaE4B: return .gemma12B
-            case .mimo:                return nil
+            case .qwen35_9b:
+                return .qwen35_9b
+            case .gemma12B, .gemmaE4B:
+                return .gemma12B
+            case .mimo:
+                return nil
             }
+        }
+
+        var multimodalProfile: LocalModelProfile {
+            .gemmaE4B
         }
 
         var directorDisplayName: String {
