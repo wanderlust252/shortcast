@@ -1,0 +1,373 @@
+{
+  "scriptCompleted": true,
+  "files": [
+    {
+      "path": ".github/workflows/release.yml",
+      "language": "yaml",
+      "sizeLines": 72,
+      "fileCategory": "infra"
+    },
+    {
+      "path": ".understand-anything/.understandignore",
+      "language": "unknown",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": ".understand-anything/config.json",
+      "language": "json",
+      "sizeLines": 1,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/fingerprints.json",
+      "language": "json",
+      "sizeLines": 506,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/knowledge-graph.json",
+      "language": "json",
+      "sizeLines": 2583,
+      "fileCategory": "config"
+    },
+    {
+      "path": ".understand-anything/meta.json",
+      "language": "json",
+      "sizeLines": 6,
+      "fileCategory": "config"
+    },
+    {
+      "path": "docs/tiktok-official-publishing.md",
+      "language": "markdown",
+      "sizeLines": 223,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "docs/youtube-instagram-publishing-ideas.md",
+      "language": "markdown",
+      "sizeLines": 542,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "NOTICE",
+      "language": "unknown",
+      "sizeLines": 32,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Probe/main.swift",
+      "language": "swift",
+      "sizeLines": 67,
+      "fileCategory": "code"
+    },
+    {
+      "path": "project.yml",
+      "language": "yaml",
+      "sizeLines": 99,
+      "fileCategory": "config"
+    },
+    {
+      "path": "README.md",
+      "language": "markdown",
+      "sizeLines": 272,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "Shortcast/Assets.xcassets/AccentColor.colorset/Contents.json",
+      "language": "json",
+      "sizeLines": 12,
+      "fileCategory": "config"
+    },
+    {
+      "path": "Shortcast/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "language": "json",
+      "sizeLines": 15,
+      "fileCategory": "config"
+    },
+    {
+      "path": "Shortcast/Assets.xcassets/Contents.json",
+      "language": "json",
+      "sizeLines": 6,
+      "fileCategory": "config"
+    },
+    {
+      "path": "Shortcast/Info.plist",
+      "language": "xml",
+      "sizeLines": 36,
+      "fileCategory": "config"
+    },
+    {
+      "path": "Shortcast/Models/AppSettings.swift",
+      "language": "swift",
+      "sizeLines": 363,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/ClipCandidate.swift",
+      "language": "swift",
+      "sizeLines": 34,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/HighlightPlan.swift",
+      "language": "swift",
+      "sizeLines": 88,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/PostVariant.swift",
+      "language": "swift",
+      "sizeLines": 70,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/PublishReport.swift",
+      "language": "swift",
+      "sizeLines": 35,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/ShortClip.swift",
+      "language": "swift",
+      "sizeLines": 165,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/String+Trimmed.swift",
+      "language": "swift",
+      "sizeLines": 6,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Models/VideoJob.swift",
+      "language": "swift",
+      "sizeLines": 21,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Resources/social-content-coach.md",
+      "language": "markdown",
+      "sizeLines": 97,
+      "fileCategory": "docs"
+    },
+    {
+      "path": "Shortcast/Services/ChatModelProfile.swift",
+      "language": "swift",
+      "sizeLines": 92,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/GemmaService.swift",
+      "language": "swift",
+      "sizeLines": 30,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/JSONVariantParser.swift",
+      "language": "swift",
+      "sizeLines": 176,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/KeychainStore.swift",
+      "language": "swift",
+      "sizeLines": 48,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/MediaExtractor.swift",
+      "language": "swift",
+      "sizeLines": 780,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/MimoService.swift",
+      "language": "swift",
+      "sizeLines": 399,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/ModelManager.swift",
+      "language": "swift",
+      "sizeLines": 104,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/MomentFinderService.swift",
+      "language": "swift",
+      "sizeLines": 442,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/PromptBuilder.swift",
+      "language": "swift",
+      "sizeLines": 171,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/PublishingProvider.swift",
+      "language": "swift",
+      "sizeLines": 57,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/TikTokOfficialProvider.swift",
+      "language": "swift",
+      "sizeLines": 274,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/TranscriptionService.swift",
+      "language": "swift",
+      "sizeLines": 284,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/UploadPostClient.swift",
+      "language": "swift",
+      "sizeLines": 233,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/VerticalReframer.swift",
+      "language": "swift",
+      "sizeLines": 364,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/VideoOverlayRenderer.swift",
+      "language": "swift",
+      "sizeLines": 180,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Services/WorkspaceModel.swift",
+      "language": "swift",
+      "sizeLines": 448,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/ShortcastApp.swift",
+      "language": "swift",
+      "sizeLines": 33,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/Color+Hex.swift",
+      "language": "swift",
+      "sizeLines": 19,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ContentView.swift",
+      "language": "swift",
+      "sizeLines": 66,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/DropZoneView.swift",
+      "language": "swift",
+      "sizeLines": 100,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/HighlightResultsView.swift",
+      "language": "swift",
+      "sizeLines": 190,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ModelDownloadView.swift",
+      "language": "swift",
+      "sizeLines": 96,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/PhoneVideoPlayer.swift",
+      "language": "swift",
+      "sizeLines": 44,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/PostPreviewCard.swift",
+      "language": "swift",
+      "sizeLines": 325,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ProcessingView.swift",
+      "language": "swift",
+      "sizeLines": 62,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/PublishResultView.swift",
+      "language": "swift",
+      "sizeLines": 79,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ResultsView.swift",
+      "language": "swift",
+      "sizeLines": 123,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ScheduleSheet.swift",
+      "language": "swift",
+      "sizeLines": 192,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/SettingsView.swift",
+      "language": "swift",
+      "sizeLines": 364,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ShortClipCard.swift",
+      "language": "swift",
+      "sizeLines": 168,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ShortClipTile.swift",
+      "language": "swift",
+      "sizeLines": 301,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ShortsProgressView.swift",
+      "language": "swift",
+      "sizeLines": 191,
+      "fileCategory": "code"
+    },
+    {
+      "path": "Shortcast/Views/ShortsResultsView.swift",
+      "language": "swift",
+      "sizeLines": 144,
+      "fileCategory": "code"
+    }
+  ],
+  "totalFiles": 58,
+  "filteredByIgnore": 0,
+  "estimatedComplexity": "moderate",
+  "stats": {
+    "filesScanned": 58,
+    "byCategory": {
+      "infra": 1,
+      "code": 44,
+      "config": 9,
+      "docs": 4
+    },
+    "byLanguage": {
+      "yaml": 2,
+      "unknown": 2,
+      "json": 7,
+      "markdown": 4,
+      "swift": 42,
+      "xml": 1
+    }
+  }
+}
