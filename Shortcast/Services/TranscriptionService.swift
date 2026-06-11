@@ -187,6 +187,7 @@ final class TranscriptionService {
             "german": "de", "alemán": "de", "aleman": "de", "deutsch": "de",
             "italian": "it", "italiano": "it",
             "catalan": "ca", "català": "ca",
+            "vietnamese": "vi", "vietnam": "vi", "tiếng việt": "vi", "tieng viet": "vi",
         ]
         if let mapped = names[h] { return mapped }
         if h.count == 2 { return h }     // already a code

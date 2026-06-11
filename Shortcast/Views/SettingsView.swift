@@ -98,6 +98,9 @@ struct SettingsView: View {
                     "Language",
                     text: $settings.languageOverride,
                     prompt: Text("Auto-detect from the video"))
+                Text("Optional. Set to `Vietnamese` or `vi` to force Whisper transcription and model outputs to Vietnamese.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Your style examples")

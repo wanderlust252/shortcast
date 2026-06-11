@@ -249,6 +249,11 @@ final class WorkspaceModel {
         guard let targetLanguage = settings.highlightSubtitleLanguage.targetLanguage else {
             return transcript
         }
+        if targetLanguage == "Vietnamese",
+           TranscriptionService.languageCode(from: settings.languageOverride) == "vi" {
+            Self.log("skip subtitle translation — transcript language override is already Vietnamese")
+            return transcript
+        }
 
         let selectedIndices = transcript.segments.indices.filter { index in
             let cue = transcript.segments[index]
