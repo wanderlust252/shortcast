@@ -96,6 +96,27 @@ final class AppSettings {
         }
     }
 
+    enum HighlightSubtitleLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
+        case original
+        case vietnamese
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .original: "Original transcript"
+            case .vietnamese: "Vietnamese"
+            }
+        }
+
+        var targetLanguage: String? {
+            switch self {
+            case .original: nil
+            case .vietnamese: "Vietnamese"
+            }
+        }
+    }
+
     /// Upload-Post API key. Mirrored to `UserDefaults` on every change.
     var apiKey: String {
         didSet { persistAPIKey() }
@@ -207,6 +228,11 @@ final class AppSettings {
         didSet { defaults.set(highlightAspectMode.rawValue, forKey: Keys.highlightAspect) }
     }
 
+    /// Language used for burned-in subtitles on long-video highlights.
+    var highlightSubtitleLanguage: HighlightSubtitleLanguage {
+        didSet { defaults.set(highlightSubtitleLanguage.rawValue, forKey: Keys.highlightSubtitleLanguage) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -253,6 +279,8 @@ final class AppSettings {
         self.reframeToVertical = defaults.object(forKey: Keys.reframe) as? Bool ?? true
         self.highlightAspectMode = defaults.string(forKey: Keys.highlightAspect)
             .flatMap(HighlightAspectMode.init) ?? .vertical
+        self.highlightSubtitleLanguage = defaults.string(forKey: Keys.highlightSubtitleLanguage)
+            .flatMap(HighlightSubtitleLanguage.init) ?? .original
     }
 
     /// True once the app has enough to publish.
@@ -327,6 +355,7 @@ final class AppSettings {
         static let burnHook    = "shortcast.burnHookOverlay"
         static let reframe     = "shortcast.reframeToVertical"
         static let highlightAspect = "shortcast.highlight.aspectMode"
+        static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.
         static let legacyApiKey = "upload-post-api-key"

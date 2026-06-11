@@ -102,6 +102,64 @@ struct MimoService: Sendable {
             topP: 0.95)
     }
 
+    func translateSubtitleSegments(
+        _ segments: [TranscriptSegment],
+        targetLanguage: String
+    ) async throws -> [TranscriptSegment] {
+        let target = targetLanguage.trimmed
+        guard !target.isEmpty, !segments.isEmpty else { return segments }
+
+        var translatedByIndex: [Int: String] = [:]
+        for chunkStart in stride(from: 0, to: segments.count, by: 60) {
+            let chunkEnd = min(chunkStart + 60, segments.count)
+            let chunk = Array(segments[chunkStart..<chunkEnd])
+            let items = chunk.enumerated().map { offset, segment in
+                [
+                    "id": chunkStart + offset,
+                    "text": TranscriptionService.cleanTranscriptText(segment.text),
+                ] as [String: Any]
+            }
+            let inputData = try JSONSerialization.data(withJSONObject: ["items": items], options: [.sortedKeys])
+            let input = String(data: inputData, encoding: .utf8) ?? #"{"items":[]}"#
+
+            let raw = try await complete(
+                system: """
+                Translate subtitle cue text to \(target).
+                Return ONLY valid JSON in this shape:
+                {"items":[{"id":0,"text":"translated subtitle"}]}
+                Rules:
+                - Preserve every id exactly.
+                - Keep each subtitle concise and natural.
+                - Do not include timestamps, speaker labels, notes, markdown, or explanations.
+                - Do not add or remove items.
+                """,
+                user: input,
+                maxTokens: 4096,
+                temperature: 0.2,
+                topP: 0.9)
+            if let object = JSONVariantParser.extractJSONObject(from: raw),
+               let root = JSONVariantParser.deserializeTolerant(object) as? [String: Any],
+               let output = root["items"] as? [[String: Any]] {
+                for item in output {
+                    guard let id = item["id"] as? Int,
+                          let text = item["text"] as? String
+                    else { continue }
+                    let cleaned = TranscriptionService.cleanTranscriptText(text)
+                    if !cleaned.isEmpty {
+                        translatedByIndex[id] = cleaned
+                    }
+                }
+            }
+        }
+
+        return segments.enumerated().map { index, segment in
+            TranscriptSegment(
+                start: segment.start,
+                end: segment.end,
+                text: translatedByIndex[index] ?? segment.text)
+        }
+    }
+
     private func complete(
         system: String,
         user: String,

@@ -26,16 +26,19 @@ struct HighlightSegment: Sendable, Identifiable, Equatable {
 }
 
 struct HighlightPlan: Sendable, Equatable {
+    static let introDuration = 3.0
+    static let transitionDuration = 0.4
+
     var title: String
     var summary: String
     var segments: [HighlightSegment]
 
     var duration: Double {
-        segments.reduce(0) { $0 + $1.duration }
+        Self.renderedDuration(for: segments)
     }
 
     func outputRangeLabel(for segment: HighlightSegment) -> String {
-        var cursor = 0.0
+        var cursor = Self.introDuration
         for item in segments {
             if item.id == segment.id {
                 return HighlightSegment.label(cursor) + "-" + HighlightSegment.label(cursor + item.duration)
@@ -43,6 +46,12 @@ struct HighlightPlan: Sendable, Equatable {
             cursor += item.duration
         }
         return ""
+    }
+
+    static func renderedDuration(for segments: [HighlightSegment]) -> Double {
+        guard !segments.isEmpty else { return 0 }
+        let content = segments.reduce(0) { $0 + $1.duration }
+        return introDuration + content
     }
 }
 

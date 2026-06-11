@@ -170,6 +170,14 @@ struct SettingsView: View {
                 Text("Vertical 9:16 is ready for social posting. Original ratio preserves slides and wide interview framing.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Picker("Subtitle language", selection: $settings.highlightSubtitleLanguage) {
+                    ForEach(AppSettings.HighlightSubtitleLanguage.allCases) { language in
+                        Text(language.displayName).tag(language)
+                    }
+                }
+                Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues before rendering.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Caption writer") {

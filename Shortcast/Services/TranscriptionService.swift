@@ -159,8 +159,10 @@ final class TranscriptionService {
             options.detectLanguage = true
         }
         let results = try await whisper.transcribe(audioPath: audioURL.path, decodeOptions: options)
-        let segments = results.flatMap(\.segments).map {
-            TranscriptSegment(start: Double($0.start), end: Double($0.end), text: $0.text)
+        let segments = results.flatMap(\.segments).compactMap { segment -> TranscriptSegment? in
+            let text = Self.cleanTranscriptText(segment.text)
+            guard !text.isEmpty else { return nil }
+            return TranscriptSegment(start: Double(segment.start), end: Double(segment.end), text: text)
         }
         guard !segments.isEmpty else { throw TranscriptionError.empty }
         Self.log("transcribed \(segments.count) segments, language=\(results.first?.language ?? "?")")
@@ -222,7 +224,7 @@ final class TranscriptionService {
                   let start = timecode(parts[0]),
                   let end = timecode(parts[1])
             else { continue }
-            let text = lines[(timeLineIndex + 1)...].joined(separator: " ").trimmed
+            let text = cleanTranscriptText(lines[(timeLineIndex + 1)...].joined(separator: " "))
             guard !text.isEmpty else { continue }
             segments.append(TranscriptSegment(start: start, end: end, text: text))
         }
@@ -242,6 +244,27 @@ final class TranscriptionService {
         case 1: return fields[0]
         default: return nil
         }
+    }
+
+    nonisolated static func cleanTranscriptText(_ raw: String) -> String {
+        var text = raw.trimmed
+        let clockTime = #"\d{1,2}:\d{2}(?::\d{2})?(?:[,.]\d{1,3})?"#
+        let decimalTime = #"\d+(?:[,.]\d{1,3})?"#
+        let patterns = [
+            #"<\|[^|>]+\|>"#,
+            #"(?:\(|\[)?"# + clockTime + #"\s*(?:-->|-|–|—|to)\s*"# + clockTime + #"(?:\)|\])?"#,
+            #"(?:\(|\[)?"# + decimalTime + #"\s*(?:-->|-|–|—|to)\s*"# + decimalTime + #"(?:\)|\])?"#,
+            #"^\s*(?:[\[(]?"# + clockTime + #"[\])]?\s*)+"#,
+            #"(?:\s*[\[(]?"# + clockTime + #"[\])]?\s*)+$"#,
+        ]
+        for pattern in patterns {
+            text = text.replacingOccurrences(
+                of: pattern,
+                with: " ",
+                options: [.regularExpression, .caseInsensitive])
+        }
+        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        return text.trimmed
     }
 }
 

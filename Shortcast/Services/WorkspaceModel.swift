@@ -205,10 +205,16 @@ final class WorkspaceModel {
             // 3. Render one highlight video from the selected ranges.
             phase = .renderingHighlight
             let t2 = Date()
-            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue)")
+            let renderTranscript = try await transcriptForHighlightSubtitles(
+                transcript,
+                plan: plan,
+                settings: settings,
+                mimo: mimo)
+            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue)")
             let outputURL = try await MediaExtractor.renderHighlight(
                 from: job.url,
-                segments: plan.segments,
+                plan: plan,
+                transcript: renderTranscript,
                 aspectMode: settings.highlightAspectMode)
             highlightVideo = HighlightVideo(
                 plan: plan,
@@ -232,6 +238,36 @@ final class WorkspaceModel {
             highlightVideo = nil
             phase = .empty
         }
+    }
+
+    private func transcriptForHighlightSubtitles(
+        _ transcript: Transcript,
+        plan: HighlightPlan,
+        settings: AppSettings,
+        mimo: MimoService
+    ) async throws -> Transcript {
+        guard let targetLanguage = settings.highlightSubtitleLanguage.targetLanguage else {
+            return transcript
+        }
+
+        let selectedIndices = transcript.segments.indices.filter { index in
+            let cue = transcript.segments[index]
+            return plan.segments.contains { segment in
+                cue.end > segment.start && cue.start < segment.end
+            }
+        }
+        guard !selectedIndices.isEmpty else { return transcript }
+
+        Self.log("translate highlight subtitles — target=\(targetLanguage), cues=\(selectedIndices.count)")
+        let selectedSegments = selectedIndices.map { transcript.segments[$0] }
+        let translated = try await mimo.translateSubtitleSegments(
+            selectedSegments,
+            targetLanguage: targetLanguage)
+        var output = transcript.segments
+        for (offset, index) in selectedIndices.enumerated() where offset < translated.count {
+            output[index] = translated[offset]
+        }
+        return Transcript(segments: output, language: "vi")
     }
 
     private func captionClip(_ clip: ShortClip, modelManager: ModelManager, settings: AppSettings,
@@ -283,7 +319,7 @@ final class WorkspaceModel {
     // MARK: - Timing logs (stderr; visible when launched from the terminal)
 
     nonisolated static func log(_ message: String) {
-        FileHandle.standardError.write(Data("[shortcast/pipeline] \(message)\n".utf8))
+        ShortcastTrace.log("pipeline", message)
     }
 
     /// Formatted seconds elapsed between two dates (defaults `to` = now).
