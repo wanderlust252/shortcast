@@ -195,7 +195,8 @@ Build and run the **Shortcast** scheme. The `.xcodeproj` is generated from
 > **Release build:**
 > ```bash
 > xcodebuild -project Shortcast.xcodeproj -scheme Shortcast \
->   -configuration Release -skipMacroValidation -destination 'platform=macOS' build
+>  -configuration Release -skipMacroValidation -destination 'platform=macOS' \
+>  SYMROOT=$(pwd)/build build
 > ```
 
 ### Release DMG
