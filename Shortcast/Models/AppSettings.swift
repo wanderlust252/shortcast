@@ -117,6 +117,29 @@ final class AppSettings {
         }
     }
 
+    enum TranscriptionBackend: String, CaseIterable, Identifiable, Codable, Sendable {
+        case whisper
+        case mimoASR
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .whisper: "WhisperKit large-v3"
+            case .mimoASR: "MiMo V2.5 ASR"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .whisper:
+                "Local, timestamped, slower on long videos."
+            case .mimoASR:
+                "Remote, best for Chinese/English, and faster; timestamps are chunk-level because the API returns text only."
+            }
+        }
+    }
+
     /// Upload-Post API key. Mirrored to `UserDefaults` on every change.
     var apiKey: String {
         didSet { persistAPIKey() }
@@ -180,6 +203,11 @@ final class AppSettings {
     /// Xiaomi model id for the OpenAI-compatible Chat Completions API.
     var mimoModelID: String {
         didSet { defaults.set(mimoModelID, forKey: Keys.mimoModel) }
+    }
+
+    /// Speech-to-text backend for long-video highlights.
+    var transcriptionBackend: TranscriptionBackend {
+        didSet { defaults.set(transcriptionBackend.rawValue, forKey: Keys.transcriptionBackend) }
     }
 
     /// Optional Xiaomi MiMo OpenAI-compatible base URL. Token Plan users receive
@@ -252,6 +280,8 @@ final class AppSettings {
         self.mimoAPIKey = defaults.string(forKey: Keys.mimoAPIKey) ?? ""
         self.mimoModelID = defaults.string(forKey: Keys.mimoModel) ?? "mimo-v2.5-pro"
         self.mimoBaseURL = defaults.string(forKey: Keys.mimoBaseURL) ?? ""
+        self.transcriptionBackend = defaults.string(forKey: Keys.transcriptionBackend)
+            .flatMap(TranscriptionBackend.init) ?? .whisper
         self.profileName = defaults.string(forKey: Keys.profile) ?? ""
         self.publishingProvider = defaults.string(forKey: Keys.publishingProvider)
             .flatMap(PublishingProviderID.init) ?? .uploadPost
@@ -348,6 +378,7 @@ final class AppSettings {
         static let mimoAPIKey  = "shortcast.mimo.apiKey"
         static let mimoModel   = "shortcast.mimo.model"
         static let mimoBaseURL = "shortcast.mimo.baseURL"
+        static let transcriptionBackend = "shortcast.transcription.backend"
         static let language    = "shortcast.languageOverride"
         static let style       = "shortcast.styleExamples"
         static let tiktokDraft = "shortcast.tiktokAsDraft"

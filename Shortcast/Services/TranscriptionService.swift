@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import NaturalLanguage
 import Observation
@@ -92,11 +93,20 @@ final class TranscriptionService {
     /// Returns a transcript for `videoURL`, using a sidecar `.srt`/`.vtt` if one
     /// sits next to it, otherwise transcribing on-device. `languageHint` (e.g.
     /// "es", "Spanish") forces Whisper's decode language; empty = auto-detect.
-    func transcript(for videoURL: URL, languageHint: String = "") async throws -> Transcript {
+    func transcript(
+        for videoURL: URL,
+        languageHint: String = "",
+        backend: AppSettings.TranscriptionBackend = .whisper,
+        mimo: MimoService? = nil
+    ) async throws -> Transcript {
         if let sidecar = Self.findSidecar(for: videoURL),
            let parsed = Self.parseSubtitles(at: sidecar) {
             phase = .ready
             return parsed
+        }
+        if backend == .mimoASR {
+            guard let mimo else { throw MimoError.notConfigured }
+            return try await transcribeWithMimo(videoURL, languageHint: languageHint, mimo: mimo)
         }
         return try await transcribeOnDevice(videoURL, languageHint: languageHint)
     }
@@ -170,8 +180,129 @@ final class TranscriptionService {
         return Transcript(segments: segments, language: results.first?.language)
     }
 
+    private func transcribeWithMimo(_ videoURL: URL, languageHint: String, mimo: MimoService) async throws -> Transcript {
+        phase = .transcribing
+        let t0 = Date()
+        guard let audioURL = try await MediaExtractor.extractAudio(from: videoURL, maxSeconds: nil) else {
+            throw TranscriptionError.noAudio
+        }
+        defer { try? FileManager.default.removeItem(at: audioURL) }
+
+        let chunks = try Self.makeMimoWAVChunks(from: audioURL, chunkSeconds: 60)
+        defer {
+            for chunk in chunks {
+                try? FileManager.default.removeItem(at: chunk.url)
+            }
+        }
+
+        Self.log("mimo-asr chunks=\(chunks.count)")
+        var segments: [TranscriptSegment] = []
+        for (index, chunk) in chunks.enumerated() {
+            let data = try Data(contentsOf: chunk.url)
+            let dataURL = "data:audio/wav;base64,\(data.base64EncodedString())"
+            let text = try await mimo.transcribeAudio(dataURL: dataURL, language: languageHint)
+            let cleaned = Self.cleanTranscriptText(text)
+            if !cleaned.isEmpty {
+                segments.append(TranscriptSegment(start: chunk.start, end: chunk.end, text: cleaned))
+            }
+            Self.log("mimo-asr chunk \(index + 1)/\(chunks.count) \(Self.mmss(chunk.start))-\(Self.mmss(chunk.end)) bytes=\(data.count)")
+        }
+
+        guard !segments.isEmpty else { throw TranscriptionError.empty }
+        Self.log("mimo-asr transcribed \(segments.count) chunk segment(s) in \(String(format: "%.1fs", Date().timeIntervalSince(t0)))")
+        phase = .ready
+        let languageCode = Self.languageCode(from: languageHint)
+        let supportedLanguage = ["en", "zh"].contains(languageCode ?? "") ? languageCode : nil
+        return Transcript(segments: segments, language: supportedLanguage)
+    }
+
     nonisolated static func log(_ message: String) {
         FileHandle.standardError.write(Data("[shortcast/transcribe] \(message)\n".utf8))
+    }
+
+    private static func mmss(_ seconds: Double) -> String {
+        let t = Int(seconds.rounded())
+        return String(format: "%d:%02d", t / 60, t % 60)
+    }
+
+    private struct MimoAudioChunk {
+        let url: URL
+        let start: Double
+        let end: Double
+    }
+
+    private static func makeMimoWAVChunks(from audioURL: URL, chunkSeconds: Double) throws -> [MimoAudioChunk] {
+        let inputFile = try AVAudioFile(forReading: audioURL)
+        let inputFormat = inputFile.processingFormat
+        guard let outputFormat = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 16_000,
+            channels: 1,
+            interleaved: false),
+              let converter = AVAudioConverter(from: inputFormat, to: outputFormat)
+        else {
+            throw TranscriptionError.audioConversionFailed
+        }
+
+        let outputFramesPerChunk = AVAudioFramePosition(chunkSeconds * outputFormat.sampleRate)
+        var chunks: [MimoAudioChunk] = []
+        var outputCursor: AVAudioFramePosition = 0
+
+        while inputFile.framePosition < inputFile.length {
+            let chunkStart = Double(outputCursor) / outputFormat.sampleRate
+            let chunkURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("shortcast-mimo-asr-\(UUID().uuidString).wav")
+            let outputFile = try AVAudioFile(forWriting: chunkURL, settings: outputFormat.settings)
+            var chunkFrames: AVAudioFramePosition = 0
+
+            while chunkFrames < outputFramesPerChunk && inputFile.framePosition < inputFile.length {
+                let remainingInput = inputFile.length - inputFile.framePosition
+                let inputFrameCount = AVAudioFrameCount(min(4096, remainingInput))
+                guard let inputBuffer = AVAudioPCMBuffer(
+                    pcmFormat: inputFormat,
+                    frameCapacity: inputFrameCount)
+                else { throw TranscriptionError.audioConversionFailed }
+                try inputFile.read(into: inputBuffer, frameCount: inputFrameCount)
+                guard inputBuffer.frameLength > 0 else { break }
+
+                let ratio = outputFormat.sampleRate / inputFormat.sampleRate
+                let outputCapacity = AVAudioFrameCount(Double(inputBuffer.frameLength) * ratio) + 1024
+                guard let outputBuffer = AVAudioPCMBuffer(
+                    pcmFormat: outputFormat,
+                    frameCapacity: outputCapacity)
+                else { throw TranscriptionError.audioConversionFailed }
+
+                var didProvideInput = false
+                var convertError: NSError?
+                converter.convert(to: outputBuffer, error: &convertError) { _, status in
+                    if didProvideInput {
+                        status.pointee = .noDataNow
+                        return nil
+                    }
+                    didProvideInput = true
+                    status.pointee = .haveData
+                    return inputBuffer
+                }
+                if let convertError { throw convertError }
+
+                if outputBuffer.frameLength > 0 {
+                    try outputFile.write(from: outputBuffer)
+                    chunkFrames += AVAudioFramePosition(outputBuffer.frameLength)
+                    outputCursor += AVAudioFramePosition(outputBuffer.frameLength)
+                }
+            }
+
+            converter.reset()
+            let chunkEnd = Double(outputCursor) / outputFormat.sampleRate
+            if chunkEnd > chunkStart {
+                chunks.append(MimoAudioChunk(url: chunkURL, start: chunkStart, end: chunkEnd))
+            } else {
+                try? FileManager.default.removeItem(at: chunkURL)
+                break
+            }
+        }
+
+        return chunks
     }
 
     /// Maps a user language hint to a Whisper 2-letter code, or nil to auto-detect.
@@ -273,12 +404,15 @@ enum TranscriptionError: LocalizedError {
     case noAudio
     case modelUnavailable
     case empty
+    case audioConversionFailed
 
     var errorDescription: String? {
         switch self {
         case .noAudio:          return "That video has no audio to transcribe."
         case .modelUnavailable: return "The transcription model couldn't be loaded."
         case .empty:            return "No speech was found in that video."
+        case .audioConversionFailed:
+            return "Couldn't convert the audio into WAV chunks for transcription."
         }
     }
 }

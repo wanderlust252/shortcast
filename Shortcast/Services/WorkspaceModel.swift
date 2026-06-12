@@ -177,8 +177,15 @@ final class WorkspaceModel {
             // 1. Transcript: sidecar .srt/.vtt if present, else WhisperKit.
             phase = .transcribing
             let t0 = Date()
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
             let transcript = try await transcription.transcript(
-                for: job.url, languageHint: settings.languageOverride)
+                for: job.url,
+                languageHint: settings.languageOverride,
+                backend: settings.transcriptionBackend,
+                mimo: mimo)
             // Trust the language of the actual text over Whisper's 30s auto-detect.
             let captionLanguage = transcript.contentLanguage ?? transcript.language
             let outputLanguage = settings.languageOverride.trimmed.isEmpty
@@ -191,10 +198,6 @@ final class WorkspaceModel {
             phase = .findingMoments
             let t1 = Date()
             Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
-            let mimo = MimoService(
-                apiKey: settings.mimoAPIKey,
-                modelID: settings.mimoModelID,
-                baseURL: settings.mimoBaseURL)
             let plan = try await mimo.planHighlight(
                 transcript: transcript.srtLike(),
                 language: outputLanguage,
@@ -249,9 +252,10 @@ final class WorkspaceModel {
         guard let targetLanguage = settings.highlightSubtitleLanguage.targetLanguage else {
             return transcript
         }
+        let transcriptLanguage = transcript.contentLanguage ?? transcript.language
         if targetLanguage == "Vietnamese",
-           TranscriptionService.languageCode(from: settings.languageOverride) == "vi" {
-            Self.log("skip subtitle translation — transcript language override is already Vietnamese")
+           TranscriptionService.languageCode(from: transcriptLanguage ?? "") == "vi" {
+            Self.log("skip subtitle translation — transcript text is already Vietnamese")
             return transcript
         }
 

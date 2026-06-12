@@ -144,12 +144,20 @@ struct SettingsView: View {
             }
 
             Section("How a long video becomes a highlight") {
+                Picker("Transcription", selection: $settings.transcriptionBackend) {
+                    ForEach(AppSettings.TranscriptionBackend.allCases) { backend in
+                        Text(backend.displayName).tag(backend)
+                    }
+                }
+                Text(settings.transcriptionBackend.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 pipelineRole(
                     step: "1", icon: "waveform",
                     title: "Transcribe",
-                    model: "WhisperKit · large-v3-turbo",
+                    model: settings.transcriptionBackend.displayName,
                     detail: "Turns the audio into text. Runs only when the video has no .srt/.vtt next to it.",
-                    status: nil)
+                    status: settings.transcriptionBackend == .mimoASR && settings.mimoAPIKey.trimmed.isEmpty ? "Needs MiMo key" : nil)
                 pipelineRole(
                     step: "2", icon: "wand.and.stars",
                     title: "Plan the highlight",

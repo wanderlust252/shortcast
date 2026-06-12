@@ -102,6 +102,51 @@ struct MimoService: Sendable {
             topP: 0.95)
     }
 
+    func transcribeAudio(dataURL: String, language: String?) async throws -> String {
+        let key = apiKey.trimmed
+        guard !key.isEmpty else { throw MimoError.notConfigured }
+
+        var request = URLRequest(url: try resolvedBaseURL().appending(path: "chat/completions"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(key, forHTTPHeaderField: "api-key")
+        request.timeoutInterval = 300
+
+        let asrLanguage = Self.asrLanguage(from: language)
+        let body: [String: Any] = [
+            "model": "mimo-v2.5-asr",
+            "messages": [
+                [
+                    "role": "user",
+                    "content": [
+                        [
+                            "type": "input_audio",
+                            "input_audio": [
+                                "data": dataURL
+                            ],
+                        ]
+                    ],
+                ]
+            ],
+            "asr_options": [
+                "language": asrLanguage
+            ],
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            let text = String(data: data, encoding: .utf8) ?? ""
+            throw MimoError.http(status: http.statusCode, body: String(text.prefix(400)))
+        }
+
+        let decoded = try JSONDecoder.snakeCase.decode(ChatCompletionResponse.self, from: data)
+        guard let content = decoded.choices.first?.message.content?.trimmed,
+              !content.isEmpty
+        else { throw MimoError.noContent }
+        return content
+    }
+
     func translateSubtitleSegments(
         _ segments: [TranscriptSegment],
         targetLanguage: String
@@ -219,6 +264,17 @@ struct MimoService: Sendable {
             return Self.defaultTokenPlanBaseURL
         }
         return Self.payAsYouGoBaseURL
+    }
+
+    private static func asrLanguage(from language: String?) -> String {
+        switch (language ?? "").trimmed.lowercased() {
+        case "en", "english", "inglés", "ingles":
+            return "en"
+        case "zh", "chinese", "mandarin", "中文", "普通话":
+            return "zh"
+        default:
+            return "auto"
+        }
     }
 
     private static func highlightSystemPrompt(language: String?) -> String {
