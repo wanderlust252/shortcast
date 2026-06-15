@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// One generated short: its hook + rationale, an Approve toggle, the three
-/// editable platform previews of the cut clip, and a per-clip Publish action.
+/// One generated legacy clip: its title + rationale, an Approve toggle, the
+/// editable text previews of the cut clip, and a per-clip Publish action.
 struct ShortClipCard: View {
 
     @Bindable var clip: ShortClip
@@ -64,7 +64,7 @@ struct ShortClipCard: View {
     private var working: some View {
         HStack(spacing: 10) {
             ProgressView().controlSize(.small)
-            Text(clip.stage == .cutting ? "Cutting the clip…" : "Writing captions…")
+            Text(clip.stage == .cutting ? "Cutting the clip…" : "Writing summaries…")
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -88,7 +88,7 @@ struct ShortClipCard: View {
             .toggleStyle(.switch)
 
             if clip.reframeEnabled {
-                Text("Tracks the speaker and reframes this horizontal clip for TikTok/Reels/Shorts when you publish.")
+                Text("Tracks the speaker and reframes this horizontal clip to a vertical phone-friendly layout when you publish.")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
@@ -100,13 +100,13 @@ struct ShortClipCard: View {
     private var overlayEditor: some View {
         VStack(alignment: .leading, spacing: 6) {
             Toggle(isOn: $clip.overlayEnabled) {
-                Label("Text hook over the video (first 3s)", systemImage: "textformat")
+                Label("Text title over the video (first 3s)", systemImage: "textformat")
                     .font(.callout)
             }
             .toggleStyle(.switch)
 
             if clip.overlayEnabled {
-                TextField("On-screen hook", text: $clip.overlayText, axis: .vertical)
+                TextField("On-screen title", text: $clip.overlayText, axis: .vertical)
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1...2)
                 Text("Burned into the video when you publish.")

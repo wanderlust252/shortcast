@@ -16,7 +16,7 @@ struct ModelDownloadView: View {
             Text("Shortcast")
                 .font(.largeTitle.bold())
 
-            Text("One short video becomes ready-to-post copy for TikTok, Instagram Reels and YouTube Shorts — generated entirely on your Mac.")
+            Text("Long videos become concise, subtitled highlight videos with grounded summaries and readable section titles.")
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
@@ -37,7 +37,7 @@ struct ModelDownloadView: View {
 
             Spacer()
 
-            Text("The model downloads once (~\(modelManager.estimatedDownloadGB) GB). After that, Shortcast never sends your videos anywhere.")
+            Text("The model downloads once (~\(modelManager.estimatedDownloadGB) GB). Local helpers stay on your Mac; MiMo features use your configured API key.")
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)

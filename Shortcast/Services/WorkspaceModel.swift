@@ -2,8 +2,8 @@ import Foundation
 import Observation
 
 /// Drives the main window's state machine. Two flows share it:
-///  - short video → one set of editable variants → publish (the original path).
-///  - long video → transcribe → plan + render one highlight video.
+///  - short video → one set of editable legacy summaries.
+///  - long video → transcribe → plan + render one subtitled highlight video.
 @MainActor
 @Observable
 final class WorkspaceModel {
@@ -12,27 +12,27 @@ final class WorkspaceModel {
     /// drop screen rather than guessed from the video's length.
     enum InputMode: String, CaseIterable, Identifiable, Sendable {
         case shorts    // long video → render one educational highlight video
-        case caption   // short video → captions → publish (the original flow)
+        case caption   // short video → legacy summaries
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .caption: "Caption a short"
+            case .caption: "Summarize a short"
             case .shorts:  "Make highlight video"
             }
         }
 
         var dropTitle: String {
             switch self {
-            case .caption: "Drop a short video here"
+            case .caption: "Drop a short clip here"
             case .shorts:  "Drop a lecture, podcast or interview here"
             }
         }
 
         var dropSubtitle: String {
             switch self {
-            case .caption: "Up to 60 seconds — a TikTok, Reel or Short"
+            case .caption: "Up to 60 seconds — write grounded notes"
             case .shorts:  "We'll remove the rambling and render one 5-15 minute highlight"
             }
         }
@@ -85,7 +85,7 @@ final class WorkspaceModel {
 
     private var pipelineTask: Task<Void, Never>?
 
-    // Publishing (single-video flow)
+    // Publishing (legacy single-video flow)
     private(set) var isPublishing = false
     private(set) var publishReport: PublishReport?
     private(set) var publishError: String?
@@ -124,20 +124,21 @@ final class WorkspaceModel {
         }
     }
 
-    // MARK: - Single-video flow (unchanged behaviour)
+    // MARK: - Legacy single-video summary flow
 
     private func processSingleVideo(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) async {
-        guard let engine = modelManager.engine else {
-            errorMessage = "The model is still getting ready — give it a moment, then drop the video again."
-            return
-        }
-
         job = newJob
         variants = []
         detectedLanguage = nil
         phase = .processing
 
         do {
+            if modelManager.engine == nil {
+                await modelManager.prepareIfNeeded()
+            }
+            guard let engine = modelManager.engine else {
+                throw MomentFinderError.notReady
+            }
             let result = try await GemmaService.generate(
                 job: newJob,
                 engine: engine,
@@ -218,12 +219,19 @@ final class WorkspaceModel {
                 from: job.url,
                 plan: plan,
                 transcript: renderTranscript,
-                aspectMode: settings.highlightAspectMode)
+                aspectMode: settings.highlightAspectMode,
+                showIntroCard: settings.showHighlightIntroCard)
+            let durationSeconds = settings.showHighlightIntroCard
+                ? plan.duration
+                : plan.segments.reduce(0) { $0 + $1.duration }
             highlightVideo = HighlightVideo(
                 plan: plan,
                 url: outputURL,
                 aspectMode: settings.highlightAspectMode,
-                durationSeconds: plan.duration)
+                showIntroCard: settings.showHighlightIntroCard,
+                sourceTranscript: transcript,
+                renderedTranscript: renderTranscript,
+                durationSeconds: durationSeconds)
             phase = .highlightResults
             Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
@@ -268,13 +276,26 @@ final class WorkspaceModel {
         guard !selectedIndices.isEmpty else { return transcript }
 
         Self.log("translate highlight subtitles — target=\(targetLanguage), cues=\(selectedIndices.count)")
-        let selectedSegments = selectedIndices.map { transcript.segments[$0] }
-        let translated = try await mimo.translateSubtitleSegments(
-            selectedSegments,
-            targetLanguage: targetLanguage)
+        var translatedByIndex: [Int: TranscriptSegment] = [:]
+        for segment in plan.segments {
+            let indices = transcript.segments.indices.filter { index in
+                let cue = transcript.segments[index]
+                return cue.end > segment.start && cue.start < segment.end
+            }
+            guard !indices.isEmpty else { continue }
+            let selectedSegments = indices.map { transcript.segments[$0] }
+            let translated = try await mimo.translateSubtitleSegments(
+                selectedSegments,
+                targetLanguage: targetLanguage,
+                contextTitle: segment.title,
+                contextSummary: plan.summary)
+            for (offset, index) in indices.enumerated() where offset < translated.count {
+                translatedByIndex[index] = translated[offset]
+            }
+        }
         var output = transcript.segments
-        for (offset, index) in selectedIndices.enumerated() where offset < translated.count {
-            output[index] = translated[offset]
+        for (index, translated) in translatedByIndex {
+            output[index] = translated
         }
         return Transcript(segments: output, language: "vi")
     }

@@ -43,7 +43,7 @@ struct MimoService: Sendable {
             system: MomentFinderService.captioningPrompt(
                 language: language,
                 styleExamples: styleExamples),
-            user: "Video transcript with timestamps:\n\n\(transcript)\n\nReturn the clips JSON.",
+            user: "Video transcript with timestamps:\n\n\(transcript)\n\nReturn the educational clips JSON.",
             maxTokens: 8192,
             temperature: 0.7,
             topP: 0.95)
@@ -149,38 +149,69 @@ struct MimoService: Sendable {
 
     func translateSubtitleSegments(
         _ segments: [TranscriptSegment],
-        targetLanguage: String
+        targetLanguage: String,
+        contextTitle: String = "",
+        contextSummary: String = ""
     ) async throws -> [TranscriptSegment] {
         let target = targetLanguage.trimmed
         guard !target.isEmpty, !segments.isEmpty else { return segments }
 
         var translatedByIndex: [Int: String] = [:]
-        for chunkStart in stride(from: 0, to: segments.count, by: 60) {
-            let chunkEnd = min(chunkStart + 60, segments.count)
+        for chunkStart in stride(from: 0, to: segments.count, by: 40) {
+            let chunkEnd = min(chunkStart + 40, segments.count)
             let chunk = Array(segments[chunkStart..<chunkEnd])
             let items = chunk.enumerated().map { offset, segment in
                 [
                     "id": chunkStart + offset,
+                    "start": segment.start,
+                    "end": segment.end,
                     "text": TranscriptionService.cleanTranscriptText(segment.text),
                 ] as [String: Any]
             }
-            let inputData = try JSONSerialization.data(withJSONObject: ["items": items], options: [.sortedKeys])
+            let before = segments[max(0, chunkStart - 6)..<chunkStart]
+                .map { TranscriptionService.cleanTranscriptText($0.text) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            let after = segments[chunkEnd..<min(segments.count, chunkEnd + 6)]
+                .map { TranscriptionService.cleanTranscriptText($0.text) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            let inputObject: [String: Any] = [
+                "target_language": target,
+                "segment_title": contextTitle.trimmed,
+                "segment_summary": contextSummary.trimmed,
+                "context_before": before,
+                "context_after": after,
+                "items": items,
+            ]
+            let inputData = try JSONSerialization.data(withJSONObject: inputObject, options: [.sortedKeys])
             let input = String(data: inputData, encoding: .utf8) ?? #"{"items":[]}"#
 
             let raw = try await complete(
                 system: """
-                Translate subtitle cue text to \(target).
+                You are a senior subtitle translator and Vietnamese copy editor.
+                Translate subtitle cue text to \(target), using the surrounding
+                context to preserve meaning across cue boundaries.
+
                 Return ONLY valid JSON in this shape:
                 {"items":[{"id":0,"text":"translated subtitle"}]}
+
                 Rules:
                 - Preserve every id exactly.
-                - Keep each subtitle concise and natural.
+                - Return one output item for every input item, in the same order.
+                - Read all items as one continuous spoken passage before translating.
+                - Do not translate word by word. Use natural, fluent Vietnamese.
+                - Repair obvious ASR and spelling errors when the intended meaning is clear.
+                - Keep terminology consistent across the whole segment.
+                - Resolve pronouns, implied subjects, and sentence flow from nearby cues.
+                - Keep each cue concise enough for subtitles, but do not make it cryptic.
+                - Use standard Vietnamese spelling, punctuation, capitalization, and diacritics.
                 - Do not include timestamps, speaker labels, notes, markdown, or explanations.
-                - Do not add or remove items.
+                - Do not add new facts or change technical meaning.
                 """,
                 user: input,
                 maxTokens: 4096,
-                temperature: 0.2,
+                temperature: 0.1,
                 topP: 0.9)
             if let object = JSONVariantParser.extractJSONObject(from: raw),
                let root = JSONVariantParser.deserializeTolerant(object) as? [String: Any],
@@ -284,15 +315,17 @@ struct MimoService: Sendable {
             : "Write title, summary, segment titles, and why fields in this language: \(lang)."
 
         return """
-        You are an expert educational video editor. You receive a timestamped \
-        transcript from a long lecture, podcast, presentation, or interview. \
-        Your job is to create an edit decision list for ONE coherent highlight \
-        video, not a set of shorts.
+        You are an expert educational video editor and subtitle-aware summary \
+        writer. You receive a timestamped transcript from a long lecture, \
+        podcast, presentation, or interview. Your job is to create an edit \
+        decision list for ONE coherent highlight video, not a set of shorts.
 
         Goal:
         - Make a 5 to 15 minute highlight video.
         - Preserve the strongest knowledge path: opening context, core concepts, \
         concrete examples, key warnings, and takeaways.
+        - Favor sections whose spoken text can carry readable subtitles without \
+        requiring missing visual context.
         - Remove slow delivery, repetition, filler, greetings, sponsorships, \
         long pauses, and rambling.
         - Keep each selected segment as a complete idea. Never cut mid-sentence.
@@ -308,7 +341,7 @@ struct MimoService: Sendable {
             {
               "start": "MM:SS or HH:MM:SS",
               "end": "MM:SS or HH:MM:SS",
-              "title": "what this segment teaches",
+              "title": "short subtitle-friendly title for this idea",
               "why": "why this segment belongs in the highlight"
             }
           ]
@@ -318,6 +351,7 @@ struct MimoService: Sendable {
         - Prefer 6 to 14 segments.
         - Individual segments should usually be 20 to 180 seconds.
         - Total selected duration should be 300 to 900 seconds.
+        - Titles should be calm, literal, and readable as on-screen labels.
         - Do not invent content outside the transcript.
         """
     }

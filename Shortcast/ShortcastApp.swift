@@ -13,10 +13,6 @@ struct ShortcastApp: App {
                 .environment(settings)
                 .environment(modelManager)
                 .environment(workspace)
-                .task {
-                    // Kick off the first-run download / model load.
-                    await modelManager.prepareIfNeeded()
-                }
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 1180, height: 880)

@@ -22,7 +22,7 @@ final class ModelManager {
     private(set) var phase: Phase = .idle
     private(set) var engine: Gemma4Engine?
 
-    /// The "Director" — Qwen 3.5 9B, finds viral moments from a transcript.
+    /// The legacy "Director" — finds useful clip ranges from a transcript.
     /// Loaded lazily on the first long-video drop, not at app launch.
     let momentFinder = MomentFinderService()
 

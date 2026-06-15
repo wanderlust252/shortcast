@@ -2,8 +2,8 @@
 
 # Shortcast
 
-**Long videos → ready-to-post shorts for TikTok, Instagram Reels and YouTube Shorts.**
-**Found, cut, captioned, reframed and scheduled — fully on your Mac. Open-source.**
+**Long videos → concise, subtitled highlight videos.**
+**Transcribed, summarized, cut, subtitled and rendered from your Mac. Open-source.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/macOS-15%2B-black?logo=apple)
@@ -14,11 +14,11 @@
 
 <br />
 
-<img src="assets/demo.gif" alt="Shortcast demo — drop a long video, get cut, captioned, vertical shorts" width="720" />
+<img src="assets/demo.gif" alt="Shortcast demo — drop a long video, get a summarized subtitled highlight" width="720" />
 
 <br />
 
-<sub>Drop a long video → it transcribes, finds the best moments, cuts them, writes the copy, reframes to vertical → review the grid → publish or schedule the whole week.</sub>
+<sub>Drop a long video → it transcribes, plans one coherent highlight, cuts the useful sections, burns subtitles, and renders a downloadable video.</sub>
 
 </div>
 
@@ -28,100 +28,78 @@
 
 Shortcast has two modes:
 
-### 🎬 Make shorts from a long video (the main one)
+### 🎬 Make a highlight video (the main one)
 
-Drop a podcast, talk, stream or any long recording. Shortcast transcribes it on-device,
-finds the **best 3–6 viral moments**, cuts each one, and writes the **full post copy for
-all three platforms** — all in one pass. Horizontal (16:9) footage is **reframed to
-vertical 9:16**, tracking the speaker's face. You get a grid of finished shorts you can
-play with sound, edit, download, publish, or **schedule one-per-day across the week**.
+Drop a lecture, podcast, interview or long recording. Shortcast transcribes it,
+asks MiMo to plan one coherent **5-15 minute educational highlight**, cuts the
+useful sections, adds readable subtitles, and renders a single downloadable video.
+You can keep the original aspect ratio for slides/interviews or render a
+phone-friendly 9:16 version.
 
-### ✏️ Caption a short
+### ✏️ Summarize a short
 
-Already have a short vertical clip? Drop it and Shortcast **watches the frames and hears
-the audio** (Gemma 4 E4B, multimodal) and writes the three platform captions directly,
-rendered as editable phone-style previews.
+Already have a short clip? Drop it and Shortcast can still use the legacy helper
+path to write grounded titles and notes from the clip.
 
 What's different about Shortcast:
 
-- 🛰️ **Nothing leaves your Mac during processing.** No cloud model, no upload.
-  Your video is only sent to a network when you choose to publish it.
-- 🧠 **One model does the thinking.** A single on-device LLM reads the whole transcript,
-  picks the moments *and* writes every caption in the same pass.
-- 🎯 **Tuned per platform.** TikTok gets punchy. Instagram gets storytelling and 20–30
-  hashtags. YouTube gets short, search-friendly titles — in the language spoken in the video.
-- 📐 **Auto vertical reframe.** On-device face tracking (Vision) turns 16:9 into 9:16,
-  panning to keep the speaker centred, with a blurred-background fallback when there's no
-  clear face.
-- 🗓️ **Schedule the week in one click.** Distribute approved shorts one per day, pick the
-  time, and Upload-Post publishes them automatically.
+- 🧠 **Summary-first planning.** The planner preserves the learning path: context,
+  core concepts, examples, warnings, and takeaways.
+- 🔤 **Readable subtitles.** Selected transcript cues are burned into the rendered
+  highlight, with optional Vietnamese subtitle translation.
+- 📐 **Two output shapes.** Original ratio preserves slides and wide interviews;
+  vertical 9:16 works well for phone viewing.
+- 🛰️ **Local media processing.** Cutting, rendering, and local model helpers stay
+  on your Mac. MiMo features use your configured API key.
 - 🪶 **No Python. No Electron. No embedded runtime.** Just Swift, MLX, AVFoundation, Vision.
 
-## How a long video becomes shorts
+## How a long video becomes a highlight
 
 ```
   ┌──────────────────────────────────────────────────────────────────────┐
-  │  YOUR MAC — nothing leaves until you press Publish                    │
+  │  YOUR MAC                                                            │
   │                                                                       │
   │  drop a long video                                                    │
   │        │                                                              │
   │        ▼                                                              │
-  │  ┌──────────────┐   ┌────────────────────┐   ┌───────────────────┐    │
-  │  │ WhisperKit   │──►│  Director LLM       │──►│ AVFoundation      │    │
-  │  │ large-v3     │   │  Gemma 4 12B (MLX)  │   │ cut each clip     │    │
-  │  │ transcribe   │   │  finds moments +    │   │ + reframe 9:16    │    │
-  │  │ (GPU)        │   │  writes 3 captions  │   │  (Vision tracking)│    │
-  │  └──────────────┘   │  in ONE pass        │   │ + hook overlay    │    │
-  │                     └────────────────────┘   └───────────────────┘    │
+  │  ┌──────────────┐   ┌────────────────────┐   ┌────────────────────┐   │
+  │  │ WhisperKit   │──►│  MiMo planner       │──►│ AVFoundation       │   │
+  │  │ or MiMo ASR  │   │  summary + EDL      │   │ cut + join ranges  │   │
+  │  │ transcribe   │   │  for one highlight  │   │ burn subtitles     │   │
+  │  └──────────────┘   └────────────────────┘   └────────────────────┘   │
   │                                                       │                │
   │                                                       ▼                │
   │                                              ┌───────────────────┐     │
-  │                                              │ grid of shorts:   │     │
-  │                                              │ play w/ sound,    │     │
-  │                                              │ edit, download,   │     │
-  │                                              │ approve           │     │
+  │                                              │ one highlight:    │     │
+  │                                              │ title, summary,   │     │
+  │                                              │ subtitles, mp4    │     │
   │                                              └───────────────────┘     │
   └──────────────────────────────────────────────────────────────────────┘
-                                  │  Publish now  /  Schedule the week
-                                  ▼
-                          ┌─────────────────┐
-                          │   Upload-Post   │  TikTok · Instagram · YouTube
-                          │       API       │  (now, or scheduled per day)
-                          └─────────────────┘
 ```
 
 Concretely:
 
 1. **Transcribe.** If the video has a `.srt`/`.vtt` sidecar, it's used instantly.
-   Otherwise **WhisperKit** (`large-v3`) transcribes on the GPU. The transcript's
-   language is detected from the *text* (NaturalLanguage), so captions stay in the
-   spoken language.
-2. **Find the moments + write the copy.** The **Director** — an on-device LLM — reads the
-   whole transcript and returns a single JSON: the best clips (start/end, why, hook, a
-   short on-screen overlay) **and** the full TikTok / Instagram / YouTube caption package
-   for each, in one pass. A tolerant parser strips fences/thinking and validates clip
-   durations.
-3. **Cut.** AVFoundation cuts each moment to its own file.
-4. **Reframe (optional, automatic for horizontal clips).** Vision samples faces across
-   the clip; if the speaker is found, an `AVMutableVideoComposition` pans a 9:16 crop to
-   follow them (GPU-interpolated transform ramps). No clear face → a blurred-background
-   letterbox. A short text **hook** can be burned over the top.
-5. **Review.** A grid of phone-style tiles — loop each short, play it with sound, edit the
-   captions, download the rendered `.mp4`, or approve it.
-6. **Publish or schedule.** Publish now, or **schedule the week**: approved shorts go out
-   one per day at a time you choose, via Upload-Post's `scheduled_date`. TikTok lands as a
-   draft by default so you can finish in-app.
+   Otherwise WhisperKit or MiMo ASR creates a transcript.
+2. **Plan the highlight.** MiMo reads the timestamped transcript and returns a
+   JSON edit decision list: title, summary, and selected segments.
+3. **Cut and join.** AVFoundation cuts the selected source ranges and joins them
+   into one highlight video.
+4. **Subtitle.** Shortcast burns readable subtitle cues into the rendered output.
+   It can translate selected highlight cues to Vietnamese before rendering.
+5. **Review.** Play the rendered highlight, inspect its title/summary/segments,
+   and download the `.mp4`.
 
 ### Choosing the model
 
-Settings → *Caption writer* picks the on-device model that finds the moments and writes
-the captions:
+Settings → *Legacy clip summarizer* picks the helper model used by older
+single-clip paths:
 
 | Model | Role | Notes |
 |-------|------|-------|
-| **Gemma 4 12B** (default) | Director + inline captions | Strongest writing, one model, one pass. Loaded via MLX. |
-| **Qwen 3.5 9B** | Director + inline captions | Lighter and a bit faster, one pass. Huge context window. |
-| **Gemma 4 E4B** | Clip-watching copywriter | Multimodal — *watches* each clip (frames + audio) and captions it in a separate pass. Also the model used by *Caption a short*. |
+| **Gemma 4 12B** (default) | Legacy transcript helper | Finds useful clip ranges and writes grounded summaries. |
+| **Qwen 3.5 9B** | Legacy transcript helper | Lighter transcript-based summaries with a large context window. |
+| **Gemma 4 E4B** | Clip-watching helper | Multimodal — watches a clip (frames + audio) before writing a grounded summary. |
 
 The model downloads once on first use. Everything runs offline afterwards.
 

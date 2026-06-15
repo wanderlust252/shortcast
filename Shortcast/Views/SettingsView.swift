@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The single configuration screen (⌘,): Upload-Post account, caption style,
-/// publishing options, and model status.
+/// The single configuration screen (⌘,): highlight, subtitle, publishing,
+/// and model status.
 struct SettingsView: View {
 
     @Environment(AppSettings.self) private var settings
@@ -93,17 +93,17 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Captions") {
+            Section("Language and summary style") {
                 TextField(
                     "Language",
                     text: $settings.languageOverride,
                     prompt: Text("Auto-detect from the video"))
-                Text("Optional. Set to `Vietnamese` or `vi` to force Whisper transcription and model outputs to Vietnamese.")
+                Text("Optional. Set to `Vietnamese` or `vi` to force transcription hints, highlight summaries, and subtitle text to Vietnamese.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Your style examples")
+                    Text("Your note style examples")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     TextEditor(text: $settings.styleExamples)
@@ -112,7 +112,7 @@ struct SettingsView: View {
                         .scrollContentBackground(.hidden)
                         .padding(6)
                         .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
-                    Text("Optional. Paste a few captions you like — the model will match your voice.")
+                    Text("Optional. Paste a few summaries or study notes you like — the model will match your voice.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -130,7 +130,7 @@ struct SettingsView: View {
                 TextField("Model", text: $settings.mimoModelID, prompt: Text("mimo-v2.5-pro"))
                 TextField("Base URL", text: $settings.mimoBaseURL, prompt: Text(mimoBaseURLPrompt))
 
-                Text("Used only when Caption writer is set to MiMo API. For Token Plan keys (`tp-...`), use the Base URL from Subscription Management; empty defaults to Singapore. Pay-as-you-go keys (`sk-...`) use the public API endpoint.")
+                Text("Used for MiMo transcription, highlight planning, subtitle translation, and legacy clip summaries. For Token Plan keys (`tp-...`), use the Base URL from Subscription Management; empty defaults to Singapore. Pay-as-you-go keys (`sk-...`) use the public API endpoint.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -178,7 +178,11 @@ struct SettingsView: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                Text("Vertical 9:16 is ready for social posting. Original ratio preserves slides and wide interview framing.")
+                Text("Vertical 9:16 works well for phone viewing. Original ratio preserves slides and wide interview framing.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Show intro table of contents", isOn: $settings.showHighlightIntroCard)
+                Text("When off, the exported highlight starts immediately with the first selected segment.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("Subtitle language", selection: $settings.highlightSubtitleLanguage) {
@@ -191,7 +195,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Caption writer") {
+            Section("Legacy clip summarizer") {
                 Picker("Model", selection: $settings.copywriterModel) {
                     ForEach(AppSettings.CopywriterModel.allCases) { model in
                         Text(model.displayName).tag(model)
@@ -200,11 +204,11 @@ struct SettingsView: View {
                 Text(settings.copywriterModel.tagline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Text("Used by the legacy shorts helpers and captioning paths. The long-video highlight planner always uses MiMo.")
+                Text("Used only by older clip helper paths. The long-video highlight planner and subtitle renderer always use MiMo.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if settings.copywriterModel.usesRemoteMimo && settings.mimoAPIKey.trimmed.isEmpty {
-                    Label("Add a MiMo API key above before processing a long video with MiMo.",
+                    Label("Add a MiMo API key above before using MiMo for legacy clip summaries.",
                           systemImage: "key")
                         .font(.caption)
                         .foregroundStyle(.orange)
@@ -217,16 +221,16 @@ struct SettingsView: View {
                 }
             }
 
-            Section("Text hook overlay") {
-                Toggle("Burn an AI text hook into each short", isOn: $settings.burnHookOverlay)
-                Text("Shows a short hook over the top of each clip for the first few seconds. The default for new shorts — you can flip it per clip. The text is rendered into the video when you publish.")
+            Section("Legacy clip text overlay") {
+                Toggle("Burn an AI title into each clip", isOn: $settings.burnHookOverlay)
+                Text("Shows a short, subtitle-friendly title over older generated clips. The long-video highlight renderer uses its own subtitle overlay.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            Section("Vertical reframing") {
+            Section("Legacy vertical reframing") {
                 Toggle("Auto-convert horizontal clips to vertical 9:16", isOn: $settings.reframeToVertical)
-                Text("Tracks the speaker with on-device Vision and reframes 16:9 → 9:16, falling back to a blurred background when there's no clear face. The default for new horizontal clips — you can flip it per clip. Applied when you publish.")
+                Text("Tracks the speaker with on-device Vision and reframes older generated clips from 16:9 to 9:16, falling back to a blurred background when there's no clear face.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

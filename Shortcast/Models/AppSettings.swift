@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// User configuration: Upload-Post credentials and content-style preferences.
+/// User configuration: highlight, subtitle, publishing, and model preferences.
 ///
 /// Everything (including the API key) lives in `UserDefaults`. The key used to
 /// sit in the Keychain, but every dev rebuild changes the app's code signature,
@@ -11,10 +11,9 @@ import Observation
 @Observable
 final class AppSettings {
 
-    /// Which model finds the moments and writes each clip's captions. Two of the
-    /// options (Gemma 4 12B, Qwen 3.5 9B) are text models that double as the
-    /// "Director" and write captions inline in the same pass; the third (Gemma 4
-    /// E4B) is a multimodal copywriter that watches each clip separately.
+    /// Legacy clip helper model. The headline long-video highlight flow uses
+    /// MiMo for planning; these options remain for the older single-clip and
+    /// generated-clip text helpers.
     enum CopywriterModel: String, CaseIterable, Identifiable, Sendable {
         case gemma12B = "gemma12b"
         case qwen35_9b = "qwen"
@@ -34,10 +33,10 @@ final class AppSettings {
 
         var tagline: String {
             switch self {
-            case .gemma12B:  "Finds the moments AND writes all three captions in one pass — strongest writing, one model, keeps the spoken language."
-            case .qwen35_9b: "Finds the moments AND writes all three captions in one pass — lighter, one model, keeps the spoken language."
-            case .gemmaE4B:  "Watches each clip (frames + audio) and captions it in a separate pass per clip."
-            case .mimo:      "Uses Xiaomi MiMo through its OpenAI-compatible API to find moments and write captions. Video processing stays local."
+            case .gemma12B:  "Legacy helper for finding useful clip ranges and writing grounded summaries in one pass."
+            case .qwen35_9b: "Legacy helper for lighter transcript-based clip summaries."
+            case .gemmaE4B:  "Legacy helper that watches a clip (frames + audio) before writing a grounded summary."
+            case .mimo:      "Uses Xiaomi MiMo through its OpenAI-compatible API for legacy clip summaries. Video processing stays local."
             }
         }
 
@@ -216,13 +215,13 @@ final class AppSettings {
         didSet { defaults.set(mimoBaseURL, forKey: Keys.mimoBaseURL) }
     }
 
-    /// Optional caption language override (e.g. "English", "es"). Empty = match
+    /// Optional output language override (e.g. "English", "vi"). Empty = match
     /// the language spoken in the video.
     var languageOverride: String {
         didSet { defaults.set(languageOverride, forKey: Keys.language) }
     }
 
-    /// Optional examples of the user's own captions, fed to the model as style.
+    /// Optional examples of the user's own notes or summaries, fed to the model as style.
     var styleExamples: String {
         didSet { defaults.set(styleExamples, forKey: Keys.style) }
     }
@@ -233,7 +232,7 @@ final class AppSettings {
         didSet { defaults.set(tiktokAsDraft, forKey: Keys.tiktokDraft) }
     }
 
-    /// The Copywriter model used to caption generated shorts.
+    /// The legacy helper model used to summarize generated clips.
     var copywriterModel: CopywriterModel {
         didSet { defaults.set(copywriterModel.rawValue, forKey: Keys.copywriter) }
     }
@@ -254,6 +253,11 @@ final class AppSettings {
     /// Output aspect ratio for the long-video highlight renderer.
     var highlightAspectMode: HighlightAspectMode {
         didSet { defaults.set(highlightAspectMode.rawValue, forKey: Keys.highlightAspect) }
+    }
+
+    /// Whether rendered highlights begin with a generated title/table-of-contents card.
+    var showHighlightIntroCard: Bool {
+        didSet { defaults.set(showHighlightIntroCard, forKey: Keys.showHighlightIntroCard) }
     }
 
     /// Language used for burned-in subtitles on long-video highlights.
@@ -299,8 +303,7 @@ final class AppSettings {
         self.styleExamples = defaults.string(forKey: Keys.style) ?? ""
         // Defaults to true on first launch (no stored value yet).
         self.tiktokAsDraft = defaults.object(forKey: Keys.tiktokDraft) as? Bool ?? true
-        // Default to Gemma 4 12B: one text model finds the moments and writes
-        // the captions in the same pass, keeping the spoken language.
+        // Default to Gemma 4 12B for legacy clip helpers.
         self.copywriterModel = defaults.string(forKey: Keys.copywriter)
             .flatMap(CopywriterModel.init) ?? .gemma12B
         // Default on — the user opted into the hook-overlay feature.
@@ -309,6 +312,7 @@ final class AppSettings {
         self.reframeToVertical = defaults.object(forKey: Keys.reframe) as? Bool ?? true
         self.highlightAspectMode = defaults.string(forKey: Keys.highlightAspect)
             .flatMap(HighlightAspectMode.init) ?? .vertical
+        self.showHighlightIntroCard = defaults.object(forKey: Keys.showHighlightIntroCard) as? Bool ?? false
         self.highlightSubtitleLanguage = defaults.string(forKey: Keys.highlightSubtitleLanguage)
             .flatMap(HighlightSubtitleLanguage.init) ?? .original
     }
@@ -386,6 +390,7 @@ final class AppSettings {
         static let burnHook    = "shortcast.burnHookOverlay"
         static let reframe     = "shortcast.reframeToVertical"
         static let highlightAspect = "shortcast.highlight.aspectMode"
+        static let showHighlightIntroCard = "shortcast.highlight.showIntroCard"
         static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.

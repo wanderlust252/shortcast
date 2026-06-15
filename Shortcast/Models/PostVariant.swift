@@ -41,7 +41,7 @@ enum SocialPlatform: String, CaseIterable, Codable, Identifiable, Sendable {
 /// One platform's proposed post. Edited in place by the user before publishing.
 struct PostVariant: Identifiable, Codable, Sendable, Equatable {
     var platform: SocialPlatform
-    /// Short title / scroll-stopping hook.
+    /// Short title or legacy hook.
     var hook: String
     /// Body copy / caption.
     var summary: String

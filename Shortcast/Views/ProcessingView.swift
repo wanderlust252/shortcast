@@ -5,6 +5,7 @@ import SwiftUI
 struct ProcessingView: View {
 
     @Environment(WorkspaceModel.self) private var workspace
+    @Environment(ModelManager.self) private var modelManager
     @State private var pulse = false
 
     var body: some View {
@@ -31,7 +32,7 @@ struct ProcessingView: View {
             VStack(spacing: 8) {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Watching and listening to your video…")
+                    Text(statusTitle)
                         .font(.title3.weight(.semibold))
                 }
 
@@ -41,7 +42,7 @@ struct ProcessingView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Text("Gemma 4 is running on your Mac. This usually takes 10–30 seconds.")
+                Text(statusDetail)
                     .font(.callout)
                     .foregroundStyle(.tertiary)
 
@@ -58,5 +59,27 @@ struct ProcessingView: View {
         }
         .padding(44)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var statusTitle: String {
+        switch modelManager.phase {
+        case .downloading:
+            "Downloading Gemma for this clip…"
+        case .loading:
+            "Loading Gemma into memory…"
+        default:
+            "Watching and listening to your video…"
+        }
+    }
+
+    private var statusDetail: String {
+        switch modelManager.phase {
+        case .downloading(_, let detail):
+            "This local model downloads only when you use the legacy short summarizer. \(detail)"
+        case .loading:
+            "This local model loads only when you use the legacy short summarizer."
+        default:
+            "Gemma 4 is running on your Mac. This usually takes 10-30 seconds."
+        }
     }
 }

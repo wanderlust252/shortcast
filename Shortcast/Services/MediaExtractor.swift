@@ -159,14 +159,15 @@ enum MediaExtractor {
         throw MediaExtractorError.clipExportFailed("no usable export preset")
     }
 
-    /// Builds one highlight video from the selected ranges, then burns in a
-    /// five-second table of contents, lower-third subtitles, and restrained
+    /// Builds one highlight video from the selected ranges, optionally burns in
+    /// the intro table of contents, lower-third subtitles, and restrained
     /// cross-dissolves between segments.
     static func renderHighlight(
         from url: URL,
         plan: HighlightPlan,
         transcript: Transcript,
-        aspectMode: HighlightAspectMode
+        aspectMode: HighlightAspectMode,
+        showIntroCard: Bool
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
@@ -198,7 +199,8 @@ enum MediaExtractor {
 
         let transitions = makeTransitions(for: usableSegments)
         var placements: [ClipPlacement] = []
-        var destination = CMTime(seconds: HighlightPlan.introDuration, preferredTimescale: 600)
+        let introDuration = showIntroCard ? HighlightPlan.introDuration : 0
+        var destination = CMTime(seconds: introDuration, preferredTimescale: 600)
         for index in usableSegments.indices {
             let item = usableSegments[index]
             let sourceRange = CMTimeRange(
@@ -245,7 +247,8 @@ enum MediaExtractor {
             renderSize: renderSize,
             transform: finalTransform,
             plan: plan,
-            transcript: transcript)
+            transcript: transcript,
+            showIntroCard: showIntroCard)
 
         guard let export = AVAssetExportSession(
             asset: composition, presetName: AVAssetExportPresetHighestQuality)
@@ -350,7 +353,8 @@ enum MediaExtractor {
         renderSize: CGSize,
         transform: CGAffineTransform,
         plan: HighlightPlan,
-        transcript: Transcript
+        transcript: Transcript,
+        showIntroCard: Bool
     ) -> AVMutableVideoComposition {
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = renderSize
@@ -373,7 +377,9 @@ enum MediaExtractor {
         parentLayer.frame = CGRect(origin: .zero, size: renderSize)
         videoLayer.frame = parentLayer.frame
         parentLayer.addSublayer(videoLayer)
-        parentLayer.addSublayer(makeIntroLayer(plan: plan, renderSize: renderSize))
+        if showIntroCard {
+            parentLayer.addSublayer(makeIntroLayer(plan: plan, renderSize: renderSize))
+        }
         parentLayer.addSublayer(makeTransitionLayer(
             placements: placements,
             transitions: transitions,
@@ -507,55 +513,176 @@ enum MediaExtractor {
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = nsCtx
         ctx.scaleBy(x: scale, y: scale)
-        NSColor.white.setFill()
+
+        let background = NSColor(calibratedWhite: 0.975, alpha: 1)
+        background.setFill()
         CGRect(origin: .zero, size: size).fill()
 
-        let maxWidth = size.width * 0.78
-        let titleFont = NSFont.systemFont(ofSize: max(34, size.width * 0.058), weight: .heavy)
-        let bodyFont = NSFont.systemFont(ofSize: max(19, size.width * 0.031), weight: .regular)
-        let bulletFont = NSFont.systemFont(ofSize: max(21, size.width * 0.034), weight: .semibold)
-
-        let titleStyle = NSMutableParagraphStyle()
-        titleStyle.alignment = .center
-        titleStyle.lineBreakMode = .byWordWrapping
-        let bodyStyle = NSMutableParagraphStyle()
-        bodyStyle.alignment = .center
-        bodyStyle.lineBreakMode = .byTruncatingTail
-        let bulletStyle = NSMutableParagraphStyle()
-        bulletStyle.alignment = .left
-        bulletStyle.lineBreakMode = .byTruncatingTail
-        bulletStyle.lineSpacing = 5
+        let isVertical = size.height > size.width * 1.2
+        let marginX = size.width * (isVertical ? 0.085 : 0.105)
+        let marginY = size.height * (isVertical ? 0.07 : 0.095)
+        let contentWidth = size.width - marginX * 2
+        let contentRect = CGRect(
+            x: marginX,
+            y: marginY,
+            width: contentWidth,
+            height: size.height - marginY * 2)
 
         let title = plan.title.trimmed.isEmpty ? "Highlight" : plan.title.trimmed
-        let text = NSMutableAttributedString()
-        text.append(NSAttributedString(
-            string: title + "\n",
-            attributes: [.font: titleFont, .foregroundColor: NSColor.black, .paragraphStyle: titleStyle]))
+        let titleMaxHeight = contentRect.height * (isVertical ? 0.24 : 0.26)
+        let titleFont = fittingFont(
+            for: title,
+            width: contentWidth,
+            maxHeight: titleMaxHeight,
+            maxSize: min(size.width * (isVertical ? 0.095 : 0.048), size.height * 0.13),
+            minSize: max(30, min(size.width, size.height) * 0.032),
+            weight: .heavy,
+            alignment: .center,
+            lineSpacing: 2)
+        let titleStyle = paragraph(alignment: .center, lineBreak: .byWordWrapping, lineSpacing: 2)
+        let titleText = NSAttributedString(
+            string: title,
+            attributes: [.font: titleFont, .foregroundColor: NSColor.black, .paragraphStyle: titleStyle])
+        let titleHeight = min(
+            titleMaxHeight,
+            ceil(measuredHeight(titleText, width: contentWidth)))
+        titleText.draw(
+            with: CGRect(x: contentRect.minX, y: contentRect.minY, width: contentWidth, height: titleHeight),
+            options: [.usesLineFragmentOrigin, .usesFontLeading])
+
+        var cursorY = contentRect.minY + titleHeight + size.height * (isVertical ? 0.026 : 0.025)
         if !plan.summary.trimmed.isEmpty {
-            text.append(NSAttributedString(
-                string: plan.summary.trimmed + "\n\n",
-                attributes: [.font: bodyFont, .foregroundColor: NSColor.black.withAlphaComponent(0.72), .paragraphStyle: bodyStyle]))
+            let summaryFont = NSFont.systemFont(
+                ofSize: max(20, min(size.width, size.height) * (isVertical ? 0.029 : 0.026)),
+                weight: .medium)
+            let summaryStyle = paragraph(alignment: .center, lineBreak: .byWordWrapping, lineSpacing: 3)
+            let summaryText = NSAttributedString(
+                string: plan.summary.trimmed,
+                attributes: [
+                    .font: summaryFont,
+                    .foregroundColor: NSColor.black.withAlphaComponent(0.68),
+                    .paragraphStyle: summaryStyle,
+                ])
+            let summaryLineHeight = summaryFont.ascender - summaryFont.descender + summaryFont.leading
+            let summaryMaxHeight = summaryLineHeight * (isVertical ? 4.2 : 2.4)
+            let summaryHeight = min(summaryMaxHeight, ceil(measuredHeight(summaryText, width: contentWidth * 0.92)))
+            summaryText.draw(
+                with: CGRect(
+                    x: contentRect.minX + contentWidth * 0.04,
+                    y: cursorY,
+                    width: contentWidth * 0.92,
+                    height: summaryHeight),
+                options: [.usesLineFragmentOrigin, .usesFontLeading])
+            cursorY += summaryHeight + size.height * (isVertical ? 0.04 : 0.055)
         } else {
-            text.append(NSAttributedString(string: "\n"))
-        }
-        for (index, segment) in plan.segments.prefix(8).enumerated() {
-            let itemTitle = segment.title.trimmed.isEmpty ? segment.rangeLabel : segment.title.trimmed
-            text.append(NSAttributedString(
-                string: "\(index + 1). \(itemTitle)\n",
-                attributes: [.font: bulletFont, .foregroundColor: NSColor.black, .paragraphStyle: bulletStyle]))
+            cursorY += size.height * (isVertical ? 0.03 : 0.05)
         }
 
-        let bounds = text.boundingRect(
-            with: CGSize(width: maxWidth, height: size.height * 0.86),
-            options: [.usesLineFragmentOrigin, .usesFontLeading])
-        let rect = CGRect(
-            x: (size.width - maxWidth) / 2,
-            y: max(0, (size.height - ceil(bounds.height)) / 2),
-            width: maxWidth,
-            height: min(size.height * 0.86, ceil(bounds.height) + 8))
-        text.draw(with: rect, options: [.usesLineFragmentOrigin, .usesFontLeading])
+        let remainingHeight = contentRect.maxY - cursorY
+        let maxItems = isVertical ? 7 : 5
+        let items = Array(plan.segments.prefix(maxItems))
+        if !items.isEmpty, remainingHeight > 80 {
+            let labelFont = NSFont.monospacedDigitSystemFont(
+                ofSize: max(17, min(size.width, size.height) * (isVertical ? 0.022 : 0.018)),
+                weight: .semibold)
+            let rowGap = max(8, size.height * (isVertical ? 0.011 : 0.015))
+            let rowHeight = (remainingHeight - rowGap * CGFloat(max(0, items.count - 1))) / CGFloat(items.count)
+            let titleAvailableWidth = contentWidth - (isVertical ? 145 : 180)
+            let itemFont = fittingFont(
+                for: items.map { $0.title.trimmed.isEmpty ? $0.rangeLabel : $0.title.trimmed }.joined(separator: "\n"),
+                width: titleAvailableWidth,
+                maxHeight: max(34, rowHeight - 4) * CGFloat(items.count),
+                maxSize: max(22, min(size.width, size.height) * (isVertical ? 0.038 : 0.031)),
+                minSize: max(17, min(size.width, size.height) * 0.021),
+                weight: .bold,
+                alignment: .left,
+                lineSpacing: 1)
+
+            for (index, segment) in items.enumerated() {
+                let rowY = cursorY + CGFloat(index) * (rowHeight + rowGap)
+                let rowRect = CGRect(x: contentRect.minX, y: rowY, width: contentWidth, height: rowHeight)
+                let number = String(format: "%02d", index + 1)
+                let time = segment.rangeLabel
+                let markerWidth: CGFloat = isVertical ? 112 : 142
+                let markerText = NSAttributedString(
+                    string: "\(number)  \(time)",
+                    attributes: [
+                        .font: labelFont,
+                        .foregroundColor: NSColor.black.withAlphaComponent(0.52),
+                        .paragraphStyle: paragraph(alignment: .left, lineBreak: .byClipping),
+                    ])
+                markerText.draw(
+                    with: CGRect(x: rowRect.minX, y: rowRect.minY + 3, width: markerWidth, height: rowRect.height),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading])
+
+                let itemTitle = segment.title.trimmed.isEmpty ? segment.rangeLabel : segment.title.trimmed
+                let itemText = NSAttributedString(
+                    string: itemTitle,
+                    attributes: [
+                        .font: itemFont,
+                        .foregroundColor: NSColor.black,
+                        .paragraphStyle: paragraph(alignment: .left, lineBreak: .byTruncatingTail, lineSpacing: 1),
+                    ])
+                itemText.draw(
+                    with: CGRect(
+                        x: rowRect.minX + markerWidth + 18,
+                        y: rowRect.minY,
+                        width: rowRect.width - markerWidth - 18,
+                        height: rowRect.height),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading])
+            }
+        }
+
         NSGraphicsContext.restoreGraphicsState()
         return ctx.makeImage()
+    }
+
+    private static func paragraph(
+        alignment: NSTextAlignment,
+        lineBreak: NSLineBreakMode,
+        lineSpacing: CGFloat = 0
+    ) -> NSMutableParagraphStyle {
+        let style = NSMutableParagraphStyle()
+        style.alignment = alignment
+        style.lineBreakMode = lineBreak
+        style.lineSpacing = lineSpacing
+        return style
+    }
+
+    private static func measuredHeight(_ text: NSAttributedString, width: CGFloat) -> CGFloat {
+        text.boundingRect(
+            with: CGSize(width: width, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]).height
+    }
+
+    private static func fittingFont(
+        for text: String,
+        width: CGFloat,
+        maxHeight: CGFloat,
+        maxSize: CGFloat,
+        minSize: CGFloat,
+        weight: NSFont.Weight,
+        alignment: NSTextAlignment,
+        lineSpacing: CGFloat
+    ) -> NSFont {
+        var size = max(maxSize, minSize)
+        while size > minSize {
+            let font = NSFont.systemFont(ofSize: size, weight: weight)
+            let attributed = NSAttributedString(
+                string: text,
+                attributes: [
+                    .font: font,
+                    .paragraphStyle: paragraph(
+                        alignment: alignment,
+                        lineBreak: .byWordWrapping,
+                        lineSpacing: lineSpacing),
+                ])
+            if measuredHeight(attributed, width: width) <= maxHeight {
+                return font
+            }
+            size -= 2
+        }
+        return NSFont.systemFont(ofSize: minSize, weight: weight)
     }
 
     private static func makeSubtitleOverlayLayer(

@@ -108,7 +108,7 @@ struct HighlightResultsView: View {
                             HStack(spacing: 6) {
                                 Label("Source \(segment.rangeLabel)", systemImage: "film")
                                 Text("-")
-                                Label("Output \(highlight.plan.outputRangeLabel(for: segment))",
+                                Label("Output \(highlight.outputRangeLabel(for: segment))",
                                       systemImage: "play.rectangle")
                             }
                             .font(.caption.monospacedDigit())
@@ -147,6 +147,23 @@ struct HighlightResultsView: View {
                     .foregroundStyle(.orange)
             }
             Spacer()
+            Menu {
+                Button("ASR/source subtitles (.srt)") {
+                    runSubtitleSavePanel(kind: .source)
+                }
+                .disabled(workspace.highlightVideo?.subtitleSRT(kind: .source) == nil)
+
+                Button("Rendered subtitles (.srt)") {
+                    runSubtitleSavePanel(kind: .rendered)
+                }
+                .disabled(workspace.highlightVideo?.subtitleSRT(kind: .rendered) == nil)
+            } label: {
+                Label("Download subtitles", systemImage: "captions.bubble")
+                    .frame(minWidth: 170)
+            }
+            .controlSize(.large)
+            .disabled(workspace.highlightVideo == nil)
+
             Button {
                 runSavePanel()
             } label: {
@@ -180,11 +197,46 @@ struct HighlightResultsView: View {
         }
     }
 
+    private func runSubtitleSavePanel(kind: SubtitleExportKind) {
+        guard let highlight = workspace.highlightVideo,
+              let srt = highlight.subtitleSRT(kind: kind)
+        else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
+        panel.nameFieldStringValue = suggestedSubtitleFileName(for: highlight, kind: kind)
+        panel.canCreateDirectories = true
+        panel.title = "Download subtitles"
+        panel.begin { response in
+            guard response == .OK, let destination = panel.url else { return }
+            do {
+                try srt.write(to: destination, atomically: true, encoding: .utf8)
+                exportError = nil
+            } catch {
+                exportError = error.localizedDescription
+            }
+        }
+    }
+
     private func suggestedFileName(for highlight: HighlightVideo) -> String {
         let base = highlight.plan.title
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
             .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
         return (base.isEmpty ? "highlight" : String(base.prefix(48))) + ".mp4"
+    }
+
+    private func suggestedSubtitleFileName(for highlight: HighlightVideo, kind: SubtitleExportKind) -> String {
+        let base = highlight.plan.title
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        let suffix: String
+        switch kind {
+        case .source:
+            suffix = "source"
+        case .rendered:
+            suffix = "rendered"
+        }
+        return "\(base.isEmpty ? "highlight" : String(base.prefix(42)))-\(suffix).srt"
     }
 }

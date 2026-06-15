@@ -8,8 +8,8 @@ import MLXVLM
 import Observation
 import Tokenizers
 
-/// The "Director": owns the Qwen 3.5 9B text model and turns a full transcript
-/// into a ranked list of viral clip candidates in one pass.
+/// The "Director": owns the selected text model and turns a full transcript
+/// into a ranked list of useful educational clip candidates in one pass.
 ///
 /// Adapted from Hermes-Jarvis' MLXChatService, stripped of skills/tools, draft
 /// models and speculative decoding — this is single-shot structured generation.
@@ -123,7 +123,7 @@ final class MomentFinderService {
     /// Builds a fresh session per call so one video's KV never leaks into the next.
     ///
     /// When `includeCaptions` is true, the same pass also writes each clip's
-    /// 3-platform caption package — so no separate captioning step is needed.
+    /// legacy three-card summary package, so no separate summary step is needed.
     func findMoments(
         transcript: String,
         includeCaptions: Bool = false,
@@ -134,10 +134,9 @@ final class MomentFinderService {
 
         let s = profile.sampling
         var params = GenerateParameters(
-            // Captions per clip need much more room than bare moments — a long
-            // video can yield 5-6 clips, each with three platforms' caption
-            // package (Instagram alone wants 20-30 hashtags). 6144 covers that;
-            // the repetition penalty stops runaway loops from filling it.
+            // Summaries per clip need more room than bare ranges: a long video
+            // can yield 5-6 clips, each with a three-card text package. The
+            // repetition penalty stops runaway loops from filling it.
             maxTokens: includeCaptions ? 6144 : s.maxTokens,
             temperature: s.temperature,
             topP: s.topP,
@@ -214,62 +213,62 @@ final class MomentFinderService {
 
     // MARK: - Prompt
 
-    /// The validated Spanish moment-finder prompt (proven on a real 17-min .srt).
+    /// Legacy clip-finder prompt. The current headline flow uses MiMo's
+    /// highlight planner, but this keeps older per-clip helpers educational.
     static let systemPrompt = """
-    Eres un editor experto en contenido short-form viral (TikTok, Reels, \
-    YouTube Shorts). Te doy la transcripción de un vídeo largo, con timestamps. \
-    Tu trabajo: encontrar los MEJORES momentos para cortar en clips verticales \
-    que funcionen solos y enganchen en los 2 primeros segundos.
+    You are an expert educational video editor. I will give you a long-video \
+    transcript with timestamps. Your job is to find the strongest self-contained \
+    learning moments: complete ideas that can be reviewed, subtitled, or edited \
+    into a concise study clip.
 
-    Reglas:
-    - Cada clip dura entre 15 y 50 segundos.
-    - Elige momentos con gancho, payoff, una idea completa o una frase memorable. \
-    NADA de cortar a mitad de idea.
-    - Devuelve SOLO un JSON válido, sin texto alrededor, con esta forma:
-    {"clips":[{"start":"MM:SS","end":"MM:SS","why":"por qué es viral","hook":"primera frase del clip que para el scroll","overlay":"texto MUY corto (3-6 palabras) para sobreimprimir en pantalla"}]}
-    - "overlay" es un gancho cortísimo y con punch, en el idioma del vídeo, pensado para verse grande encima del vídeo los primeros segundos.
-    - Entre 3 y 6 clips, ordenados de mejor a peor.
+    Rules:
+    - Each clip should be 15 to 50 seconds.
+    - Choose moments with a clear topic, explanation, example, warning, or \
+    takeaway. Never cut mid-thought.
+    - Write user-facing fields in the same language spoken in the transcript.
+    - Return ONLY valid JSON, with no surrounding text, using this shape:
+    {"clips":[{"start":"MM:SS","end":"MM:SS","why":"why this idea is useful","hook":"plain-language title for the idea","overlay":"very short subtitle-style title, 3-6 words"}]}
+    - "overlay" is a calm, readable on-screen label, not clickbait.
+    - Return 3 to 6 clips, ordered from most useful to least useful.
     """
 
-    /// Combined prompt: find the moments AND write each clip's 3-platform caption
-    /// package in the same pass (no separate captioning step). Used for the Qwen
-    /// copywriter path.
+    /// Combined prompt: find the moments AND write each clip's legacy three-card
+    /// summary package in the same pass. Used by older clip-helper paths.
     static func captioningPrompt(language: String?, styleExamples: String) -> String {
         let lang = (language ?? "").trimmed
         let languageRule = lang.isEmpty
-            ? "Write ALL user-facing text values (why, hook, overlay, caption hooks, descriptions, and hashtags) in the same language spoken in the video. Do not translate them to English. Keep only JSON keys and platform ids in English."
-            : "Write ALL user-facing text values (why, hook, overlay, caption hooks, descriptions, and hashtags) in this language: \(lang). Use \(lang) even if the transcript is in another language. Keep only JSON keys and platform ids in English."
+            ? "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, and notes) in the same language spoken in the video. Do not translate them to English. Keep only JSON keys and legacy platform ids in English."
+            : "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, and notes) in this language: \(lang). Use \(lang) even if the transcript is in another language. Keep only JSON keys and legacy platform ids in English."
 
         let style = styleExamples.trimmed
         let styleRule = style.isEmpty ? "" : """
 
-        Creator voice — match this style (tone, rhythm, emoji use, formatting):
+        Preferred writing style — match this style (tone, rhythm, terminology, formatting):
         \(style)
         """
 
         return """
-        You are an expert short-form video editor for TikTok, Instagram Reels, \
-        and YouTube Shorts. I will give you a long-video transcript with \
-        timestamps. Your job is to find the BEST moments to cut into vertical \
-        clips that hook viewers in the first 2 seconds, AND to write the \
-        three-platform publishing package for each clip.
+        You are an expert educational video editor. I will give you a \
+        long-video transcript with timestamps. Your job is to find the best \
+        self-contained learning moments, AND to write a concise review package \
+        for each clip.
 
         Rules:
         - Each clip must be 15 to 50 seconds. Keep one complete idea; never cut mid-thought.
-        - Return 3 to 6 clips, ordered from strongest to weakest.
+        - Return 3 to 6 clips, ordered from most useful to least useful.
         - \(languageRule)
-        - Hashtags are plain words, with NO leading '#', and each one must be unique.
+        - Keep hashtags as empty arrays; do not write social tags or calls to action.
         - Return ONLY valid JSON, with no surrounding prose, using this EXACT shape:
         {"clips":[{
           "start":"MM:SS",
           "end":"MM:SS",
-          "why":"why this works as a viral short",
-          "hook":"the first line that stops the scroll",
-          "overlay":"very short on-screen hook, 3-6 words",
+          "why":"why this idea is useful",
+          "hook":"plain-language title for the idea",
+          "overlay":"very short on-screen label, 3-6 words",
           "captions":{
-            "tiktok":{"hook":"scroll-stopping first line, max 90 characters","description":"short punchy caption","hashtags":["tag","tag","tag"]},
-            "instagram":{"hook":"strong first line","description":"2-4 short paragraphs, storytelling, ending with a call to action","hashtags":["...20-30 tags mixing broad and niche reach..."]},
-            "youtube":{"hook":"concise searchable title, 40-60 characters","description":"keyword-rich search description","hashtags":["...3-5 tags..."]}
+            "tiktok":{"hook":"plain-language title, max 90 characters","description":"1-2 sentence summary","hashtags":[]},
+            "instagram":{"hook":"section title","description":"2-4 short paragraphs of study notes grounded in the transcript","hashtags":[]},
+            "youtube":{"hook":"concise chapter title, 40-60 characters","description":"clear summary suitable for a video description or chapter note","hashtags":[]}
           }
         }]}
         - Do not invent anything that is not in the transcript.\(styleRule)
@@ -337,8 +336,8 @@ enum MomentJSONParser {
             hook: string(entry, "hook", "title", "headline"),
             overlay: string(entry, "overlay", "onscreen", "caption"))
 
-        // Inline 3-platform caption package. The captions object is keyed by
-        // platform, which JSONVariantParser already handles.
+        // Inline legacy three-card summary package. The captions object is keyed
+        // by platform ids, which JSONVariantParser already handles.
         if let captions = entry["captions"] ?? entry["posts"],
            let result = try? JSONVariantParser.parse(object: captions) {
             clip.variants = result.variants

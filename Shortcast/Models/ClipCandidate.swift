@@ -1,23 +1,22 @@
 import Foundation
 
-/// One viral moment the Director (Qwen 3.5 9B) picked out of a long video's
-/// transcript: a time range plus why it works and a suggested on-screen hook.
+/// One useful moment picked out of a long video's transcript: a time range plus
+/// why it belongs in the edit and a suggested on-screen title.
 struct ClipCandidate: Sendable, Identifiable, Equatable {
     let id = UUID()
     /// Start offset in seconds.
     var start: Double
     /// End offset in seconds.
     var end: Double
-    /// Editorial rationale ("why this is viral").
+    /// Editorial rationale for why this segment belongs in the edit.
     var why: String
-    /// Suggested scroll-stopping first line (used for the caption).
+    /// Suggested plain-language title.
     var hook: String
-    /// Short on-screen text hook (a few words) for the burned-in overlay.
+    /// Short on-screen text (a few words) for the burned-in overlay.
     var overlay: String = ""
 
-    /// The 3-platform caption package, when the Director writes it inline in the
-    /// same pass (Qwen copywriter). Empty when captions are produced separately
-    /// (Gemma copywriter, which watches each cut clip).
+    /// Legacy three-card text package, when the helper writes it inline in the
+    /// same pass. Empty when summaries are produced separately.
     var variants: [PostVariant] = []
 
     var duration: Double { end - start }

@@ -15,7 +15,7 @@ struct VideoJob: Identifiable, Sendable, Equatable {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
-    /// Shorts/Reels/TikTok run to ~60s. Longer videos still work, but the audio
-    /// tower only hears the first 30s — surface that to the user.
+    /// The legacy single-clip helper is tuned for ~60s inputs. Longer videos
+    /// still work, but the audio tower only hears the first 30s.
     var exceedsRecommendedLength: Bool { durationSeconds > 60.5 }
 }
