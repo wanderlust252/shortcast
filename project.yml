@@ -97,3 +97,18 @@ targets:
         SWIFT_VERSION: "6.0"
         MACOSX_DEPLOYMENT_TARGET: "15.0"
         GENERATE_INFOPLIST_FILE: YES
+
+  ShortcastTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: ShortcastTests
+    dependencies:
+      - target: Shortcast
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.shortcast.ShortcastTests
+        PRODUCT_NAME: ShortcastTests
+        SWIFT_VERSION: "6.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
+        GENERATE_INFOPLIST_FILE: YES

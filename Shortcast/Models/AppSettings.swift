@@ -125,16 +125,16 @@ final class AppSettings {
         var displayName: String {
             switch self {
             case .whisper: "WhisperKit large-v3"
-            case .mimoASR: "MiMo V2.5 ASR"
+            case .mimoASR: "MiMo V2.5 ASR (opt-in)"
             }
         }
 
         var detail: String {
             switch self {
             case .whisper:
-                "Local, timestamped, slower on long videos."
+                "Recommended for Vietnamese. Local, timestamped, and slower on long videos."
             case .mimoASR:
-                "Remote, best for Chinese/English, and faster; timestamps are chunk-level because the API returns text only."
+                "Remote fallback for speed or Chinese/English. Vietnamese can sound too Sino-Vietnamese, and timestamps are chunk-level because the API returns text only."
             }
         }
     }

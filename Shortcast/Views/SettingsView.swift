@@ -130,7 +130,7 @@ struct SettingsView: View {
                 TextField("Model", text: $settings.mimoModelID, prompt: Text("mimo-v2.5-pro"))
                 TextField("Base URL", text: $settings.mimoBaseURL, prompt: Text(mimoBaseURLPrompt))
 
-                Text("Used for MiMo transcription, highlight planning, subtitle translation, and legacy clip summaries. For Token Plan keys (`tp-...`), use the Base URL from Subscription Management; empty defaults to Singapore. Pay-as-you-go keys (`sk-...`) use the public API endpoint.")
+                Text("Used for highlight planning, subtitle translation, legacy clip summaries, and optional MiMo ASR. For Vietnamese transcripts, sidecar subtitles or WhisperKit are recommended. For Token Plan keys (`tp-...`), use the Base URL from Subscription Management; empty defaults to Singapore. Pay-as-you-go keys (`sk-...`) use the public API endpoint.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -156,7 +156,7 @@ struct SettingsView: View {
                     step: "1", icon: "waveform",
                     title: "Transcribe",
                     model: settings.transcriptionBackend.displayName,
-                    detail: "Turns the audio into text. Runs only when the video has no .srt/.vtt next to it.",
+                    detail: "Uses .srt/.vtt sidecars first. Without one, WhisperKit is the recommended Vietnamese path; MiMo ASR is an opt-in remote fallback.",
                     status: settings.transcriptionBackend == .mimoASR && settings.mimoAPIKey.trimmed.isEmpty ? "Needs MiMo key" : nil)
                 pipelineRole(
                     step: "2", icon: "wand.and.stars",
@@ -190,7 +190,7 @@ struct SettingsView: View {
                         Text(language.displayName).tag(language)
                     }
                 }
-                Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues before rendering.")
+                Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues with context, then formats them for readable subtitle lines.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

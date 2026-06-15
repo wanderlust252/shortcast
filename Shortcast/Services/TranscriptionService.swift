@@ -9,6 +9,15 @@ struct TranscriptSegment: Sendable, Equatable {
     let start: Double
     let end: Double
     let text: String
+    let speakerID: String?
+
+    init(start: Double, end: Double, text: String, speakerID: String? = nil) {
+        self.start = start
+        self.end = end
+        self.text = text
+        let speaker = speakerID?.trimmed
+        self.speakerID = speaker?.isEmpty == false ? speaker : nil
+    }
 }
 
 /// A full transcript with timestamps. Fed to the Director to pick moments, and
@@ -34,7 +43,10 @@ struct Transcript: Sendable, Equatable {
     /// One `[MM:SS] text` line per segment — gives the Director timestamps to
     /// reason over.
     func srtLike() -> String {
-        segments.map { "[\(Self.mmss($0.start))] \($0.text.trimmed)" }
+        segments.map { segment in
+            let speaker = segment.speakerID.map { "\($0): " } ?? ""
+            return "[\(Self.mmss(segment.start))] \(speaker)\(segment.text.trimmed)"
+        }
             .joined(separator: "\n")
     }
 
@@ -356,9 +368,15 @@ final class TranscriptionService {
                   let start = timecode(parts[0]),
                   let end = timecode(parts[1])
             else { continue }
-            let text = cleanTranscriptText(lines[(timeLineIndex + 1)...].joined(separator: " "))
+            let cueText = lines[(timeLineIndex + 1)...].joined(separator: " ")
+            let speakerCue = speakerPrefixedText(cueText)
+            let text = cleanTranscriptText(speakerCue.text)
             guard !text.isEmpty else { continue }
-            segments.append(TranscriptSegment(start: start, end: end, text: text))
+            segments.append(TranscriptSegment(
+                start: start,
+                end: end,
+                text: text,
+                speakerID: speakerCue.speakerID))
         }
         guard !segments.isEmpty else { return nil }
         return Transcript(segments: segments, language: nil)
@@ -397,6 +415,36 @@ final class TranscriptionService {
         }
         text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
         return text.trimmed
+    }
+
+    private static func speakerPrefixedText(_ raw: String) -> (speakerID: String?, text: String) {
+        let text = raw.trimmed
+        guard !text.isEmpty else { return (nil, "") }
+
+        let patterns = [
+            #"^\s*<v\s+([^>]+)>\s*(.+?)(?:</v>)?\s*$"#,
+            #"^\s*[\[(]?((?i:(?:speaker|host|guest|interviewer|interviewee|narrator|teacher|student|lecturer|instructor|professor|presenter|moderator|male|female|man|woman|nguoi noi|người nói|giang vien|giảng viên|hoc vien|học viên|khach moi|khách mời|mc))[\p{L}\p{N}\s._-]{0,24})[\])]?\s*[:：-]\s*(.+)$"#,
+        ]
+
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(text.startIndex..<text.endIndex, in: text)
+            guard let match = regex.firstMatch(in: text, range: range),
+                  match.numberOfRanges >= 3,
+                  let speakerRange = Range(match.range(at: 1), in: text),
+                  let bodyRange = Range(match.range(at: 2), in: text)
+            else { continue }
+
+            let speaker = String(text[speakerRange])
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+                .trimmed
+            let body = String(text[bodyRange]).trimmed
+            if !speaker.isEmpty, !body.isEmpty {
+                return (speaker, body)
+            }
+        }
+
+        return (nil, text)
     }
 }
 

@@ -149,78 +149,53 @@ struct MimoService: Sendable {
 
     func translateSubtitleSegments(
         _ segments: [TranscriptSegment],
-        targetLanguage: String,
-        contextTitle: String = "",
-        contextSummary: String = ""
+        context: SubtitleTranslationContext
     ) async throws -> [TranscriptSegment] {
-        let target = targetLanguage.trimmed
+        let target = context.targetLanguage.trimmed
         guard !target.isEmpty, !segments.isEmpty else { return segments }
 
         var translatedByIndex: [Int: String] = [:]
         for chunkStart in stride(from: 0, to: segments.count, by: 40) {
             let chunkEnd = min(chunkStart + 40, segments.count)
             let chunk = Array(segments[chunkStart..<chunkEnd])
-            let items = chunk.enumerated().map { offset, segment in
-                [
-                    "id": chunkStart + offset,
-                    "start": segment.start,
-                    "end": segment.end,
-                    "text": TranscriptionService.cleanTranscriptText(segment.text),
-                ] as [String: Any]
-            }
-            let before = segments[max(0, chunkStart - 6)..<chunkStart]
-                .map { TranscriptionService.cleanTranscriptText($0.text) }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-            let after = segments[chunkEnd..<min(segments.count, chunkEnd + 6)]
-                .map { TranscriptionService.cleanTranscriptText($0.text) }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-            let inputObject: [String: Any] = [
-                "target_language": target,
-                "segment_title": contextTitle.trimmed,
-                "segment_summary": contextSummary.trimmed,
-                "context_before": before,
-                "context_after": after,
-                "items": items,
-            ]
-            let inputData = try JSONSerialization.data(withJSONObject: inputObject, options: [.sortedKeys])
-            let input = String(data: inputData, encoding: .utf8) ?? #"{"items":[]}"#
+            let items = Self.subtitleItems(chunk, idOffset: chunkStart)
+            let before = Self.subtitleContextSnippet(segments[max(0, chunkStart - 6)..<chunkStart])
+            let after = Self.subtitleContextSnippet(segments[chunkEnd..<min(segments.count, chunkEnd + 6)])
+            let input = try Self.subtitleTranslationPayload(
+                context: context,
+                items: items,
+                chunkContextBefore: before,
+                chunkContextAfter: after)
 
             let raw = try await complete(
-                system: """
-                You are a senior subtitle translator and Vietnamese copy editor.
-                Translate subtitle cue text to \(target), using the surrounding
-                context to preserve meaning across cue boundaries.
-
-                Return ONLY valid JSON in this shape:
-                {"items":[{"id":0,"text":"translated subtitle"}]}
-
-                Rules:
-                - Preserve every id exactly.
-                - Return one output item for every input item, in the same order.
-                - Read all items as one continuous spoken passage before translating.
-                - Do not translate word by word. Use natural, fluent Vietnamese.
-                - Repair obvious ASR and spelling errors when the intended meaning is clear.
-                - Keep terminology consistent across the whole segment.
-                - Resolve pronouns, implied subjects, and sentence flow from nearby cues.
-                - Keep each cue concise enough for subtitles, but do not make it cryptic.
-                - Use standard Vietnamese spelling, punctuation, capitalization, and diacritics.
-                - Do not include timestamps, speaker labels, notes, markdown, or explanations.
-                - Do not add new facts or change technical meaning.
-                """,
+                system: Self.subtitleTranslationSystemPrompt(targetLanguage: target),
                 user: input,
                 maxTokens: 4096,
                 temperature: 0.1,
                 topP: 0.9)
-            if let object = JSONVariantParser.extractJSONObject(from: raw),
-               let root = JSONVariantParser.deserializeTolerant(object) as? [String: Any],
-               let output = root["items"] as? [[String: Any]] {
-                for item in output {
-                    guard let id = item["id"] as? Int,
-                          let text = item["text"] as? String
-                    else { continue }
-                    let cleaned = TranscriptionService.cleanTranscriptText(text)
+
+            var parsed = Self.parseSubtitleItems(raw)
+            let repairIDs = Self.subtitleRepairIDs(parsed: parsed, expectedIDs: chunkStart..<chunkEnd)
+            if !repairIDs.isEmpty {
+                let repairInput = try Self.subtitleRepairPayload(
+                    context: context,
+                    items: items,
+                    draftTranslations: parsed,
+                    repairIDs: repairIDs)
+                let repairedRaw = try await complete(
+                    system: Self.subtitleRepairSystemPrompt(targetLanguage: target),
+                    user: repairInput,
+                    maxTokens: 3072,
+                    temperature: 0.05,
+                    topP: 0.9)
+                for (id, text) in Self.parseSubtitleItems(repairedRaw) {
+                    parsed[id] = text
+                }
+            }
+
+            for id in chunkStart..<chunkEnd {
+                if let text = parsed[id] {
+                    let cleaned = SubtitleFormatter.inlineText(text)
                     if !cleaned.isEmpty {
                         translatedByIndex[id] = cleaned
                     }
@@ -232,8 +207,248 @@ struct MimoService: Sendable {
             TranscriptSegment(
                 start: segment.start,
                 end: segment.end,
-                text: translatedByIndex[index] ?? segment.text)
+                text: translatedByIndex[index] ?? segment.text,
+                speakerID: segment.speakerID)
         }
+    }
+
+    func proofreadVietnameseSubtitleSegments(
+        _ segments: [TranscriptSegment],
+        context: SubtitleTranslationContext
+    ) async throws -> [TranscriptSegment] {
+        guard !segments.isEmpty else { return segments }
+
+        var proofreadByIndex: [Int: String] = [:]
+        for chunkStart in stride(from: 0, to: segments.count, by: 40) {
+            let chunkEnd = min(chunkStart + 40, segments.count)
+            let chunk = Array(segments[chunkStart..<chunkEnd])
+            let items = Self.subtitleItems(chunk, idOffset: chunkStart)
+            let before = Self.subtitleContextSnippet(segments[max(0, chunkStart - 6)..<chunkStart])
+            let after = Self.subtitleContextSnippet(segments[chunkEnd..<min(segments.count, chunkEnd + 6)])
+            let input = try Self.subtitleTranslationPayload(
+                context: context,
+                items: items,
+                chunkContextBefore: before,
+                chunkContextAfter: after)
+
+            let raw = try await complete(
+                system: Self.vietnameseProofreadSystemPrompt(),
+                user: input,
+                maxTokens: 4096,
+                temperature: 0.05,
+                topP: 0.9)
+            let parsed = Self.parseSubtitleItems(raw)
+            for id in chunkStart..<chunkEnd {
+                if let text = parsed[id] {
+                    let cleaned = SubtitleFormatter.inlineText(text)
+                    if !cleaned.isEmpty {
+                        proofreadByIndex[id] = cleaned
+                    }
+                }
+            }
+        }
+
+        return segments.enumerated().map { index, segment in
+            TranscriptSegment(
+                start: segment.start,
+                end: segment.end,
+                text: proofreadByIndex[index] ?? segment.text,
+                speakerID: segment.speakerID)
+        }
+    }
+
+    private static func subtitleItems(_ segments: [TranscriptSegment], idOffset: Int) -> [[String: Any]] {
+        segments.enumerated().map { offset, segment in
+            var item: [String: Any] = [
+                "id": idOffset + offset,
+                "start": segment.start,
+                "end": segment.end,
+                "text": SubtitleFormatter.inlineText(segment.text),
+            ]
+            if let speaker = segment.speakerID {
+                item["speaker_id"] = speaker
+            }
+            return item
+        }
+    }
+
+    private static func subtitleTranslationPayload(
+        context: SubtitleTranslationContext,
+        items: [[String: Any]],
+        chunkContextBefore: String,
+        chunkContextAfter: String
+    ) throws -> String {
+        let inputObject: [String: Any] = [
+            "translation_brief": subtitleBrief(
+                context,
+                chunkContextBefore: chunkContextBefore,
+                chunkContextAfter: chunkContextAfter),
+            "items": items,
+        ]
+        let inputData = try JSONSerialization.data(withJSONObject: inputObject, options: [.sortedKeys])
+        return String(data: inputData, encoding: .utf8) ?? #"{"items":[]}"#
+    }
+
+    private static func subtitleRepairPayload(
+        context: SubtitleTranslationContext,
+        items: [[String: Any]],
+        draftTranslations: [Int: String],
+        repairIDs: [Int]
+    ) throws -> String {
+        let drafts = repairIDs.map { id -> [String: Any] in
+            [
+                "id": id,
+                "draft_text": draftTranslations[id] ?? "",
+            ]
+        }
+        let inputObject: [String: Any] = [
+            "translation_brief": subtitleBrief(
+                context,
+                chunkContextBefore: "",
+                chunkContextAfter: ""),
+            "repair_ids": repairIDs,
+            "source_items": items.filter { item in
+                guard let id = item["id"] as? Int else { return false }
+                return repairIDs.contains(id)
+            },
+            "draft_items": drafts,
+        ]
+        let inputData = try JSONSerialization.data(withJSONObject: inputObject, options: [.sortedKeys])
+        return String(data: inputData, encoding: .utf8) ?? #"{"items":[]}"#
+    }
+
+    private static func subtitleBrief(
+        _ context: SubtitleTranslationContext,
+        chunkContextBefore: String,
+        chunkContextAfter: String
+    ) -> [String: Any] {
+        [
+            "target_language": context.targetLanguage,
+            "source_language": context.sourceLanguage,
+            "content_type": context.contentType,
+            "highlight_title": context.highlightTitle,
+            "highlight_summary": context.highlightSummary,
+            "segment_title": context.segmentTitle,
+            "segment_context_before": context.contextBefore,
+            "segment_context_after": context.contextAfter,
+            "chunk_context_before": chunkContextBefore,
+            "chunk_context_after": chunkContextAfter,
+            "speaker_notes": context.speakerNotes,
+            "glossary": context.glossary,
+            "style_guide": context.styleGuide,
+            "subtitle_constraints": [
+                "target_characters_per_line": SubtitleFormatter.targetCharactersPerLine,
+                "max_lines": SubtitleFormatter.maxLines,
+            ],
+        ]
+    }
+
+    private static func subtitleContextSnippet(_ segments: ArraySlice<TranscriptSegment>) -> String {
+        segments
+            .map { segment in
+                let text = SubtitleFormatter.inlineText(segment.text)
+                guard !text.isEmpty else { return "" }
+                if let speaker = segment.speakerID {
+                    return "\(speaker): \(text)"
+                }
+                return text
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
+
+    private static func parseSubtitleItems(_ raw: String) -> [Int: String] {
+        guard let object = JSONVariantParser.extractJSONObject(from: raw),
+              let root = JSONVariantParser.deserializeTolerant(object) as? [String: Any],
+              let output = root["items"] as? [[String: Any]]
+        else { return [:] }
+
+        var result: [Int: String] = [:]
+        for item in output {
+            guard let id = subtitleItemID(item["id"]),
+                  let text = item["text"] as? String
+            else { continue }
+            let cleaned = SubtitleFormatter.inlineText(text)
+            if !cleaned.isEmpty {
+                result[id] = cleaned
+            }
+        }
+        return result
+    }
+
+    private static func subtitleItemID(_ value: Any?) -> Int? {
+        if let id = value as? Int { return id }
+        if let number = value as? NSNumber { return number.intValue }
+        if let string = value as? String { return Int(string.trimmed) }
+        return nil
+    }
+
+    private static func subtitleRepairIDs(parsed: [Int: String], expectedIDs: Range<Int>) -> [Int] {
+        expectedIDs.filter { id in
+            guard let text = parsed[id] else { return true }
+            return SubtitleFormatter.needsRepair(text)
+        }
+    }
+
+    private static func subtitleTranslationSystemPrompt(targetLanguage: String) -> String {
+        """
+        You are a senior subtitle translator and Vietnamese copy editor.
+        Translate subtitle cue text to \(targetLanguage), using translation_brief as context.
+
+        Return ONLY valid JSON in this shape:
+        {"items":[{"id":0,"text":"translated subtitle"}]}
+
+        Rules:
+        - Preserve every id exactly.
+        - Return one output item for every input item, in the same order.
+        - Read all items as one continuous spoken passage before translating.
+        - Use context only to resolve meaning, pronouns, terminology, and sentence flow.
+        - Do not translate word by word.
+        - Repair obvious ASR and spelling errors only when the intended meaning is clear.
+        - Keep terminology consistent with glossary and surrounding context.
+        - For Vietnamese, write natural contemporary Vietnamese. Avoid stiff Sino-Vietnamese wording and literal Chinese/English calques when everyday Vietnamese is clearer.
+        - Handle xung ho from explicit speaker notes or the text itself. If relationship, gender, or age is unknown, do not invent it; use neutral wording or omit pronouns when Vietnamese allows it.
+        - Keep each cue concise for subtitles. Target no more than 40 characters per rendered line and at most 2 lines.
+        - Use standard Vietnamese spelling, punctuation, capitalization, and diacritics.
+        - Do not include timestamps, speaker labels, notes, markdown, or explanations.
+        - Do not add new facts or change technical meaning.
+        """
+    }
+
+    private static func subtitleRepairSystemPrompt(targetLanguage: String) -> String {
+        """
+        You are repairing subtitle translations in \(targetLanguage).
+        Return ONLY valid JSON in this shape:
+        {"items":[{"id":0,"text":"repaired subtitle"}]}
+
+        Repair only the ids listed in repair_ids.
+        Preserve meaning, id values, and terminology.
+        Make each repaired subtitle concise enough for 2 subtitle lines of about 40 characters each.
+        For Vietnamese, prefer natural Vietnamese and avoid stiff Sino-Vietnamese wording.
+        Do not include timestamps, speaker labels, notes, markdown, or explanations.
+        """
+    }
+
+    private static func vietnameseProofreadSystemPrompt() -> String {
+        """
+        You are a Vietnamese subtitle proofreader for ASR output.
+        The input text is already Vietnamese. Do NOT translate it into another language.
+
+        Return ONLY valid JSON in this shape:
+        {"items":[{"id":0,"text":"proofread subtitle"}]}
+
+        Rules:
+        - Preserve every id exactly.
+        - Return one output item for every input item, in the same order.
+        - Correct only obvious Vietnamese spelling, diacritics, punctuation, capitalization, and ASR word-choice errors.
+        - Keep the original meaning and sentence length. Do not summarize, expand, or rewrite style.
+        - Use surrounding context only to choose between obvious homophones or typo corrections.
+        - If a phrase is uncertain, leave it unchanged.
+        - Domain term examples: use "công thức", not "thông thức"; use "Domain-Driven Design" for the software design method when the transcript clearly refers to it.
+        - Keep English technical names when they are clearer than a forced Vietnamese translation.
+        - Keep subtitles concise for reading.
+        - Do not include timestamps, speaker labels, notes, markdown, or explanations.
+        """
     }
 
     private func complete(

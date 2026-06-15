@@ -261,12 +261,6 @@ final class WorkspaceModel {
             return transcript
         }
         let transcriptLanguage = transcript.contentLanguage ?? transcript.language
-        if targetLanguage == "Vietnamese",
-           TranscriptionService.languageCode(from: transcriptLanguage ?? "") == "vi" {
-            Self.log("skip subtitle translation — transcript text is already Vietnamese")
-            return transcript
-        }
-
         let selectedIndices = transcript.segments.indices.filter { index in
             let cue = transcript.segments[index]
             return plan.segments.contains { segment in
@@ -274,6 +268,37 @@ final class WorkspaceModel {
             }
         }
         guard !selectedIndices.isEmpty else { return transcript }
+
+        if targetLanguage == "Vietnamese",
+           TranscriptionService.languageCode(from: transcriptLanguage ?? "") == "vi" {
+            Self.log("proofread Vietnamese highlight subtitles — cues=\(selectedIndices.count)")
+            var proofreadByIndex: [Int: TranscriptSegment] = [:]
+            for segment in plan.segments {
+                let indices = transcript.segments.indices.filter { index in
+                    let cue = transcript.segments[index]
+                    return cue.end > segment.start && cue.start < segment.end
+                }
+                guard !indices.isEmpty else { continue }
+                let selectedSegments = indices.map { transcript.segments[$0] }
+                let context = SubtitleContextBuilder.makeContext(
+                    transcript: transcript,
+                    plan: plan,
+                    segment: segment,
+                    targetLanguage: targetLanguage,
+                    sourceLanguage: transcriptLanguage)
+                let proofread = try await mimo.proofreadVietnameseSubtitleSegments(
+                    selectedSegments,
+                    context: context)
+                for (offset, index) in indices.enumerated() where offset < proofread.count {
+                    proofreadByIndex[index] = proofread[offset]
+                }
+            }
+            var output = transcript.segments
+            for (index, proofread) in proofreadByIndex {
+                output[index] = proofread
+            }
+            return Transcript(segments: output, language: "vi")
+        }
 
         Self.log("translate highlight subtitles — target=\(targetLanguage), cues=\(selectedIndices.count)")
         var translatedByIndex: [Int: TranscriptSegment] = [:]
@@ -284,11 +309,15 @@ final class WorkspaceModel {
             }
             guard !indices.isEmpty else { continue }
             let selectedSegments = indices.map { transcript.segments[$0] }
+            let context = SubtitleContextBuilder.makeContext(
+                transcript: transcript,
+                plan: plan,
+                segment: segment,
+                targetLanguage: targetLanguage,
+                sourceLanguage: transcriptLanguage)
             let translated = try await mimo.translateSubtitleSegments(
                 selectedSegments,
-                targetLanguage: targetLanguage,
-                contextTitle: segment.title,
-                contextSummary: plan.summary)
+                context: context)
             for (offset, index) in indices.enumerated() where offset < translated.count {
                 translatedByIndex[index] = translated[offset]
             }

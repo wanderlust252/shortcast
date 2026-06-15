@@ -103,7 +103,7 @@ struct HighlightVideo: Sendable, Equatable {
                 let sourceStart = max(cue.start, segment.start)
                 let sourceEnd = min(cue.end, segment.end)
                 guard sourceEnd - sourceStart >= 0.2 else { continue }
-                let text = TranscriptionService.cleanTranscriptText(cue.text)
+                let text = SubtitleFormatter.displayText(cue.text)
                 guard !text.isEmpty else { continue }
                 entries.append((
                     start: cursor + (sourceStart - segment.start),

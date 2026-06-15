@@ -708,7 +708,7 @@ enum MediaExtractor {
                 guard sourceEnd - sourceStart >= 0.2 else { continue }
                 let timelineStart = placement.timelineStart + (sourceStart - placement.sourceStart)
                 let timelineEnd = placement.timelineStart + (sourceEnd - placement.sourceStart)
-                let text = subtitleDisplayText(cue.text)
+                let text = SubtitleFormatter.displayText(cue.text)
                 guard !text.isEmpty else { continue }
                 let subtitleImage = renderSubtitleImage(
                     text: text,
@@ -745,24 +745,6 @@ enum MediaExtractor {
         animation.fillMode = .both
         layer.add(animation, forKey: "subtitleContents")
         return layer
-    }
-
-    private static func subtitleDisplayText(_ raw: String) -> String {
-        var text = TranscriptionService.cleanTranscriptText(raw)
-        let timecode = #"\d{1,2}:\d{2}(?::\d{2})?(?:[,.]\d{1,3})?"#
-        let patterns = [
-            #"(?:\(|\[)?"# + timecode + #"\s*(?:-->|-|–|—|to)\s*"# + timecode + #"(?:\)|\])?"#,
-            #"^\s*(?:[\[(]?"# + timecode + #"[\])]?\s*)+"#,
-            #"(?:\s*[\[(]?"# + timecode + #"[\])]?\s*)+$"#,
-        ]
-        for pattern in patterns {
-            text = text.replacingOccurrences(
-                of: pattern,
-                with: " ",
-                options: [.regularExpression, .caseInsensitive])
-        }
-        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-        return text.trimmed
     }
 
     private static func appendSubtitleFrame(
