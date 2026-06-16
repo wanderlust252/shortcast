@@ -265,6 +265,19 @@ final class AppSettings {
         didSet { defaults.set(highlightSubtitleLanguage.rawValue, forKey: Keys.highlightSubtitleLanguage) }
     }
 
+    /// When true, translated/proofread subtitles stop for manual review before
+    /// being burned into a rendered video.
+    var reviewSubtitlesBeforeRender: Bool {
+        didSet { defaults.set(reviewSubtitlesBeforeRender, forKey: Keys.reviewSubtitlesBeforeRender) }
+    }
+
+    /// Optional post-render helper that writes platform captions/hashtags for
+    /// a completed highlight. Off by default so the main highlight flow stays
+    /// focused on the video export.
+    var suggestHighlightPublishingCopy: Bool {
+        didSet { defaults.set(suggestHighlightPublishingCopy, forKey: Keys.suggestHighlightPublishingCopy) }
+    }
+
     /// Compression quality for rendered highlight and translated-video outputs.
     var exportQualityMode: ExportQualityMode {
         didSet { defaults.set(exportQualityMode.rawValue, forKey: Keys.exportQualityMode) }
@@ -320,6 +333,8 @@ final class AppSettings {
         self.showHighlightIntroCard = defaults.object(forKey: Keys.showHighlightIntroCard) as? Bool ?? false
         self.highlightSubtitleLanguage = defaults.string(forKey: Keys.highlightSubtitleLanguage)
             .flatMap(HighlightSubtitleLanguage.init) ?? .original
+        self.reviewSubtitlesBeforeRender = defaults.object(forKey: Keys.reviewSubtitlesBeforeRender) as? Bool ?? true
+        self.suggestHighlightPublishingCopy = defaults.object(forKey: Keys.suggestHighlightPublishingCopy) as? Bool ?? false
         self.exportQualityMode = defaults.string(forKey: Keys.exportQualityMode)
             .flatMap(ExportQualityMode.init) ?? .automatic
     }
@@ -399,6 +414,8 @@ final class AppSettings {
         static let highlightAspect = "shortcast.highlight.aspectMode"
         static let showHighlightIntroCard = "shortcast.highlight.showIntroCard"
         static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
+        static let reviewSubtitlesBeforeRender = "shortcast.subtitle.reviewBeforeRender"
+        static let suggestHighlightPublishingCopy = "shortcast.highlight.suggestPublishingCopy"
         static let exportQualityMode = "shortcast.export.qualityMode"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.

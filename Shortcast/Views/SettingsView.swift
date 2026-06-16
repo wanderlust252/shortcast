@@ -193,6 +193,14 @@ struct SettingsView: View {
                 Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues with context, then formats them for readable subtitle lines.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Toggle("Review translated subtitles before rendering", isOn: $settings.reviewSubtitlesBeforeRender)
+                Text("When on, translated/proofread subtitles pause for manual review and SRT download before the highlight or full translated video is rendered.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Toggle("Offer caption and hashtag suggestions after rendering", isOn: $settings.suggestHighlightPublishingCopy)
+                Text("When on, the highlight result screen shows an optional publishing-copy panel. It only calls MiMo when you press Generate.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("Output quality", selection: $settings.exportQualityMode) {
                     ForEach(ExportQualityMode.allCases) { quality in
                         Text(quality.displayName).tag(quality)

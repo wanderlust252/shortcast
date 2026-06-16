@@ -1,8 +1,8 @@
 import Foundation
 
 /// Assembles the full prompt handed to Gemma 4 alongside the video frames and
-/// audio: the bundled educational editor brief, the creator's style, the
-/// language instruction, and a strict JSON output contract.
+/// audio for the legacy publishing helper: the bundled brief, the creator's
+/// style, the language instruction, and a strict JSON output contract.
 enum PromptBuilder {
 
     /// Loads the bundled editor brief. Falls back to a terse
@@ -43,27 +43,25 @@ enum PromptBuilder {
         if language.isEmpty {
             sections.append("""
             ## Output language
-            Write every field in the SAME language that is spoken in the clip — \
-            detect it. Do not translate it to English. All user-facing text \
-            (`hook` and `description`) must be in that language; keep only JSON \
-            keys and legacy platform names in English.
+            Write every user-facing field in the SAME language that is spoken \
+            in the clip — detect it. Do not translate it to English. Keep only \
+            JSON keys and legacy platform names in English.
             """)
         } else {
             sections.append("""
             ## Output language
             Write every field in this language: \(language). \
-            Use it regardless of the language spoken in the clip. All \
-            user-facing text (`hook` and `description`) must be in \(language); \
-            keep only JSON keys and legacy platform names in English.
+            Use it regardless of the language spoken in the clip. Keep only \
+            JSON keys and legacy platform names in English.
             """)
         }
 
         let style = styleExamples.trimmed
         if !style.isEmpty {
             sections.append("""
-            ## Preferred writing style
-            Below are examples of notes or summaries this creator likes. Mirror \
-            their tone, rhythm, terminology, and formatting:
+            ## The creator's own voice — match this style
+            Below are examples of captions this creator likes. Mirror their \
+            tone, rhythm, terminology, emoji use, and formatting:
 
             \(style)
             """)
@@ -76,9 +74,10 @@ enum PromptBuilder {
     private static let taskAndSchema = """
     ## Your task
 
-    You have been given a video — its sampled frames and its audio track. Watch \
-    and listen to it, then write a concise educational text package that can be \
-    used for review, editing, and burned-in subtitle context.
+    You have been given a video — its sampled frames and its audio track. This \
+    is the app's legacy publishing helper. Watch and listen to it, then write a \
+    ready-to-edit publishing package for TikTok, Instagram Reels, and YouTube \
+    Shorts.
 
     Return ONLY a single JSON object. No prose, no markdown fences, no thinking \
     out loud. Use exactly this shape:
@@ -88,29 +87,31 @@ enum PromptBuilder {
       "variants": [
         {
           "platform": "tiktok",
-          "hook": "<plain-language title, 90 characters or fewer>",
-          "description": "<1-2 sentence summary of the main idea>",
-          "hashtags": []
+          "hook": "<scroll-stopping first line, 90 characters or fewer>",
+          "description": "<short, punchy caption>",
+          "hashtags": ["tag", "tag", "tag"]
         },
         {
           "platform": "instagram",
-          "hook": "<descriptive section title>",
-          "description": "<2-4 short paragraphs of study notes grounded in the video>",
-          "hashtags": []
+          "hook": "<strong first line>",
+          "description": "<2-4 short paragraphs, storytelling, ending with a call to action>",
+          "hashtags": ["...20 to 30 tags, mixing big and niche reach..."]
         },
         {
           "platform": "youtube",
-          "hook": "<concise chapter title, about 40-60 characters>",
-          "description": "<clear summary suitable for a video description or chapter note>",
-          "hashtags": []
+          "hook": "<concise, search-friendly title, about 40-60 characters>",
+          "description": "<keyword-rich description written for search>",
+          "hashtags": ["...3 to 5 tags..."]
         }
       ]
     }
 
     Rules:
-    - Keep `hashtags` as empty arrays; this app no longer asks for social tags.
-    - Exactly three variants, in the order above, to preserve the app's legacy \
-    editor layout.
+    - Hashtags are plain words, with NO leading "#".
+    - TikTok: 3-6 relevant hashtags.
+    - Instagram: 20-30 relevant hashtags, mixing broad, mid-size, and niche tags.
+    - YouTube: 3-5 focused searchable hashtags.
+    - Exactly three variants, one per platform, in the order above.
     - Never invent facts that are not visible or audible in the video.
     - Output the JSON object and nothing else.
     """
@@ -118,9 +119,10 @@ enum PromptBuilder {
     private static let transcriptTaskAndSchema = """
     ## Your task
 
-    You have been given the transcript of one clip from a longer video. A \
-    suggested title line is provided. Using the transcript, write a concise \
-    educational text package for review and editing.
+    You have been given the transcript of one short clip from a longer video. A \
+    suggested hook line is provided. This is the app's legacy publishing helper. \
+    Using the transcript, write a ready-to-edit publishing package for TikTok, \
+    Instagram Reels, and YouTube Shorts.
 
     Return ONLY a single JSON object. No prose, no markdown fences, no thinking \
     out loud. Use exactly this shape:
@@ -130,39 +132,41 @@ enum PromptBuilder {
       "variants": [
         {
           "platform": "tiktok",
-          "hook": "<plain-language title, 90 characters or fewer>",
-          "description": "<1-2 sentence summary of the main idea>",
-          "hashtags": []
+          "hook": "<scroll-stopping first line, 90 characters or fewer>",
+          "description": "<short, punchy caption>",
+          "hashtags": ["tag", "tag", "tag"]
         },
         {
           "platform": "instagram",
-          "hook": "<descriptive section title>",
-          "description": "<2-4 short paragraphs of study notes grounded in the transcript>",
-          "hashtags": []
+          "hook": "<strong first line>",
+          "description": "<2-4 short paragraphs, storytelling, ending with a call to action>",
+          "hashtags": ["...20 to 30 tags, mixing big and niche reach..."]
         },
         {
           "platform": "youtube",
-          "hook": "<concise chapter title, about 40-60 characters>",
-          "description": "<clear summary suitable for a video description or chapter note>",
-          "hashtags": []
+          "hook": "<concise, search-friendly title, about 40-60 characters>",
+          "description": "<keyword-rich description written for search>",
+          "hashtags": ["...3 to 5 tags..."]
         }
       ]
     }
 
     Rules:
-    - Keep `hashtags` as empty arrays; this app no longer asks for social tags.
-    - Exactly three variants, in the order above, to preserve the app's legacy \
-    editor layout.
+    - Hashtags are plain words, with NO leading "#".
+    - TikTok: 3-6 relevant hashtags.
+    - Instagram: 20-30 relevant hashtags, mixing broad, mid-size, and niche tags.
+    - YouTube: 3-5 focused searchable hashtags.
+    - Exactly three variants, one per platform, in the order above.
     - Never invent facts that are not in the transcript.
     - Output the JSON object and nothing else.
     """
 
     /// Used only if the bundled resource fails to load.
     private static let fallbackCoach = """
-    # educational-content-editor (fallback)
+    # legacy-publishing-editor (fallback)
 
-    You are an expert educational video editor. Write grounded titles, concise \
-    summaries, and subtitle-friendly text that match the actual content. Do not \
-    add social-media framing, hashtags, or unsupported claims.
+    You are an expert short-form publishing editor. Write grounded hooks, \
+    captions, and hashtags that match the actual content. Make each platform \
+    variant distinct, and never invent unsupported claims.
     """
 }

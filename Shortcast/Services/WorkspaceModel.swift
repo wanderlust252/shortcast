@@ -14,13 +14,13 @@ final class WorkspaceModel {
     enum InputMode: String, CaseIterable, Identifiable, Sendable {
         case shorts    // long video → render one educational highlight video
         case translateFullVideo // long video → render full video with Vietnamese subtitles
-        case caption   // short video → legacy summaries
+        case caption   // short video → legacy captions and hashtag suggestions
 
         var id: String { rawValue }
 
         var title: String {
             switch self {
-            case .caption: "Summarize a short"
+            case .caption: "Caption a short"
             case .shorts:  "Make highlight video"
             case .translateFullVideo: "Translate full video"
             }
@@ -36,7 +36,7 @@ final class WorkspaceModel {
 
         var dropSubtitle: String {
             switch self {
-            case .caption: "Up to 60 seconds — write grounded notes"
+            case .caption: "Up to 60 seconds — suggest captions and hashtags"
             case .shorts:  "We'll remove the rambling and render one 5-15 minute highlight"
             case .translateFullVideo: "Render the whole video with Vietnamese subtitles"
             }
@@ -64,6 +64,7 @@ final class WorkspaceModel {
         case transcribing
         case findingMoments
         case translatingSubtitles
+        case reviewingSubtitles
         case renderingHighlight
         case highlightResults
         case renderingTranslatedVideo
@@ -84,8 +85,18 @@ final class WorkspaceModel {
     /// The rendered long-video highlight.
     var highlightVideo: HighlightVideo?
 
+    /// Optional post-render caption/hashtag suggestions for the rendered highlight.
+    var highlightVariants: [PostVariant] = []
+    var translatedVariants: [PostVariant] = []
+    private(set) var isGeneratingHighlightCopy = false
+    private(set) var highlightCopyError: String?
+
     /// The rendered full-length Vietnamese subtitle translation.
     var translatedVideo: TranslatedVideo?
+
+    /// Translated/proofread subtitles waiting for manual approval before render.
+    var pendingSubtitleReview: PendingSubtitleReview?
+    var reviewRenderOutputs: [ReviewRenderOutput] = []
 
     /// Owns transcription (sidecar `.srt`/`.vtt` or on-device WhisperKit).
     let transcription = TranscriptionService()
@@ -163,7 +174,7 @@ final class WorkspaceModel {
             detectedLanguage = result.detectedLanguage
             phase = .results
         } catch {
-            errorMessage = "Couldn't generate posts for that video. \(error.localizedDescription)"
+            errorMessage = "Couldn't generate captions for that video. \(error.localizedDescription)"
             job = nil
             phase = .empty
         }
@@ -175,10 +186,16 @@ final class WorkspaceModel {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
         cleanupTranslatedTempFile()
+        cleanupReviewOutputTempFiles()
         job = newJob
         clips = []
         highlightVideo = nil
+        highlightVariants = []
+        translatedVariants = []
+        highlightCopyError = nil
         translatedVideo = nil
+        pendingSubtitleReview = nil
+        reviewRenderOutputs = []
         variants = []
         pipelineError = nil
         phase = .transcribing
@@ -224,32 +241,38 @@ final class WorkspaceModel {
             try Task.checkCancellation()
 
             // 3. Render one highlight video from the selected ranges.
-            phase = .renderingHighlight
             let t2 = Date()
             let renderTranscript = try await transcriptForHighlightSubtitles(
                 transcript,
                 plan: plan,
                 settings: settings,
                 mimo: mimo)
+            if settings.reviewSubtitlesBeforeRender && settings.highlightSubtitleLanguage.targetLanguage != nil {
+                pendingSubtitleReview = PendingSubtitleReview(
+                    mode: .highlight,
+                    sourceURL: job.url,
+                    sourceFileName: job.fileName,
+                    sourceDurationSeconds: job.durationSeconds,
+                    plan: plan,
+                    sourceTranscript: transcript,
+                    renderedTranscript: renderTranscript,
+                    aspectMode: settings.highlightAspectMode,
+                    showIntroCard: settings.showHighlightIntroCard,
+                    exportQuality: settings.exportQualityMode)
+                phase = .reviewingSubtitles
+                Self.log("highlight subtitles ready for review — cues=\(pendingSubtitleReview?.cueCount ?? 0)")
+                return
+            }
+            phase = .renderingHighlight
             Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue), quality=\(settings.exportQualityMode.rawValue)")
-            let outputURL = try await MediaExtractor.renderHighlight(
-                from: job.url,
+            highlightVideo = try await renderHighlightVideo(
+                sourceURL: job.url,
                 plan: plan,
-                transcript: renderTranscript,
+                sourceTranscript: transcript,
+                renderedTranscript: renderTranscript,
                 aspectMode: settings.highlightAspectMode,
                 showIntroCard: settings.showHighlightIntroCard,
                 exportQuality: settings.exportQualityMode)
-            let durationSeconds = settings.showHighlightIntroCard
-                ? plan.duration
-                : plan.segments.reduce(0) { $0 + $1.duration }
-            highlightVideo = HighlightVideo(
-                plan: plan,
-                url: outputURL,
-                aspectMode: settings.highlightAspectMode,
-                showIntroCard: settings.showHighlightIntroCard,
-                sourceTranscript: transcript,
-                renderedTranscript: renderTranscript,
-                durationSeconds: durationSeconds)
             phase = .highlightResults
             Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
@@ -257,7 +280,12 @@ final class WorkspaceModel {
             cleanupHighlightTempFile()
             clips = []
             highlightVideo = nil
+            highlightVariants = []
+            translatedVariants = []
+            highlightCopyError = nil
             translatedVideo = nil
+            pendingSubtitleReview = nil
+            reviewRenderOutputs = []
             self.job = nil
             phase = .empty
         } catch {
@@ -266,7 +294,12 @@ final class WorkspaceModel {
             self.job = nil
             clips = []
             highlightVideo = nil
+            highlightVariants = []
+            translatedVariants = []
+            highlightCopyError = nil
             translatedVideo = nil
+            pendingSubtitleReview = nil
+            reviewRenderOutputs = []
             phase = .empty
         }
     }
@@ -277,10 +310,16 @@ final class WorkspaceModel {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
         cleanupTranslatedTempFile()
+        cleanupReviewOutputTempFiles()
         job = newJob
         clips = []
         highlightVideo = nil
+        highlightVariants = []
+        translatedVariants = []
+        highlightCopyError = nil
         translatedVideo = nil
+        pendingSubtitleReview = nil
+        reviewRenderOutputs = []
         variants = []
         pipelineError = nil
         phase = .transcribing
@@ -316,18 +355,31 @@ final class WorkspaceModel {
             Self.log("translated full-video subtitles — cues=\(renderedTranscript.segments.count)")
             try Task.checkCancellation()
 
+            if settings.reviewSubtitlesBeforeRender {
+                pendingSubtitleReview = PendingSubtitleReview(
+                    mode: .fullVideo,
+                    sourceURL: job.url,
+                    sourceFileName: job.fileName,
+                    sourceDurationSeconds: job.durationSeconds,
+                    plan: nil,
+                    sourceTranscript: transcript,
+                    renderedTranscript: renderedTranscript,
+                    aspectMode: settings.highlightAspectMode,
+                    showIntroCard: false,
+                    exportQuality: settings.exportQualityMode)
+                phase = .reviewingSubtitles
+                Self.log("full-video subtitles ready for review — cues=\(pendingSubtitleReview?.cueCount ?? 0)")
+                return
+            }
+
             phase = .renderingTranslatedVideo
             Self.log("render translated video — aspect=\(settings.highlightAspectMode.rawValue), quality=\(settings.exportQualityMode.rawValue)")
-            let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
-                from: job.url,
-                transcript: renderedTranscript,
-                aspectMode: settings.highlightAspectMode,
-                exportQuality: settings.exportQualityMode)
-            translatedVideo = TranslatedVideo(
-                url: outputURL,
+            translatedVideo = try await renderTranslatedVideo(
+                sourceURL: job.url,
                 renderedTranscript: renderedTranscript,
                 durationSeconds: job.durationSeconds,
-                aspectMode: settings.highlightAspectMode)
+                aspectMode: settings.highlightAspectMode,
+                exportQuality: settings.exportQualityMode)
             phase = .translatedVideoResults
             Self.log("translated video rendered; pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
@@ -336,7 +388,12 @@ final class WorkspaceModel {
             cleanupTranslatedTempFile()
             clips = []
             highlightVideo = nil
+            highlightVariants = []
+            translatedVariants = []
+            highlightCopyError = nil
             translatedVideo = nil
+            pendingSubtitleReview = nil
+            reviewRenderOutputs = []
             self.job = nil
             phase = .empty
         } catch {
@@ -345,8 +402,237 @@ final class WorkspaceModel {
             self.job = nil
             clips = []
             highlightVideo = nil
+            highlightVariants = []
+            translatedVariants = []
+            highlightCopyError = nil
             translatedVideo = nil
+            pendingSubtitleReview = nil
+            reviewRenderOutputs = []
             phase = .empty
+        }
+    }
+
+    func updatePendingSubtitleText(index: Int, text: String) {
+        pendingSubtitleReview?.updateRenderedText(at: index, text: text)
+    }
+
+    func setPendingSubtitleCueIncluded(index: Int, included: Bool) {
+        pendingSubtitleReview?.setCueIncluded(at: index, included: included)
+    }
+
+    func restoreAllPendingSubtitleCues() {
+        pendingSubtitleReview?.restoreAllCues()
+    }
+
+    func deselectAllPendingSubtitleCues() {
+        pendingSubtitleReview?.deselectAllCues()
+    }
+
+    func approveSubtitleReviewAndRender(settings: AppSettings) async {
+        guard let review = pendingSubtitleReview else { return }
+        pipelineError = nil
+        errorMessage = nil
+
+        do {
+            switch review.mode {
+            case .highlight:
+                guard let plan = review.hasCustomSelection
+                        ? review.selectionPlan(title: review.plan?.title)
+                        : review.plan
+                else { throw SubtitleReviewError.missingHighlightPlan }
+                phase = .renderingHighlight
+                let video = try await renderHighlightVideo(
+                    sourceURL: review.sourceURL,
+                    plan: plan,
+                    sourceTranscript: review.hasCustomSelection ? review.filteredSourceTranscript() : review.sourceTranscript,
+                    renderedTranscript: review.hasCustomSelection ? review.filteredRenderedTranscript() : review.renderedTranscript,
+                    aspectMode: review.aspectMode,
+                    showIntroCard: review.hasCustomSelection ? false : review.showIntroCard,
+                    exportQuality: review.exportQuality)
+                highlightVideo = video
+                highlightVariants = []
+                highlightCopyError = nil
+                reviewRenderOutputs.insert(
+                    ReviewRenderOutput(
+                        kind: .highlight,
+                        url: video.url,
+                        title: video.plan.title,
+                        durationSeconds: video.durationSeconds,
+                        aspectMode: video.aspectMode,
+                        renderedTranscript: review.hasCustomSelection
+                            ? outputTimelineTranscript(for: plan, transcript: review.filteredRenderedTranscript(), showIntroCard: false)
+                            : outputTimelineTranscript(for: plan, transcript: review.renderedTranscript, showIntroCard: review.showIntroCard)),
+                    at: 0)
+                phase = .reviewingSubtitles
+            case .fullVideo:
+                if review.hasCustomSelection {
+                    guard let plan = review.selectionPlan() else { throw MomentFinderError.noClips }
+                    phase = .renderingHighlight
+                    let video = try await renderHighlightVideo(
+                        sourceURL: review.sourceURL,
+                        plan: plan,
+                        sourceTranscript: review.filteredSourceTranscript(),
+                        renderedTranscript: review.filteredRenderedTranscript(),
+                        aspectMode: review.aspectMode,
+                        showIntroCard: false,
+                        exportQuality: review.exportQuality)
+                    let outputTranscript = outputTimelineTranscript(
+                        for: plan,
+                        transcript: review.filteredRenderedTranscript(),
+                        showIntroCard: false)
+                    translatedVideo = TranslatedVideo(
+                        url: video.url,
+                        renderedTranscript: outputTranscript,
+                        durationSeconds: video.durationSeconds,
+                        aspectMode: video.aspectMode)
+                    reviewRenderOutputs.insert(
+                        ReviewRenderOutput(
+                            kind: .translatedShort,
+                            url: video.url,
+                            title: plan.title,
+                            durationSeconds: video.durationSeconds,
+                            aspectMode: video.aspectMode,
+                            renderedTranscript: outputTranscript),
+                        at: 0)
+                } else {
+                    phase = .renderingTranslatedVideo
+                    let video = try await renderTranslatedVideo(
+                        sourceURL: review.sourceURL,
+                        renderedTranscript: review.renderedTranscript,
+                        durationSeconds: review.sourceDurationSeconds,
+                        aspectMode: review.aspectMode,
+                        exportQuality: review.exportQuality)
+                    translatedVideo = video
+                    reviewRenderOutputs.insert(
+                        ReviewRenderOutput(
+                            kind: .translatedFullVideo,
+                            url: video.url,
+                            title: review.sourceFileName,
+                            durationSeconds: video.durationSeconds,
+                            aspectMode: video.aspectMode,
+                            renderedTranscript: video.renderedTranscript),
+                        at: 0)
+                }
+                translatedVariants = []
+                highlightCopyError = nil
+                phase = .reviewingSubtitles
+            }
+        } catch is CancellationError {
+            phase = .reviewingSubtitles
+        } catch {
+            pipelineError = error.localizedDescription
+            errorMessage = "Couldn't render the approved subtitles. \(error.localizedDescription)"
+            phase = .reviewingSubtitles
+        }
+    }
+
+    private func renderHighlightVideo(
+        sourceURL: URL,
+        plan: HighlightPlan,
+        sourceTranscript: Transcript,
+        renderedTranscript: Transcript,
+        aspectMode: HighlightAspectMode,
+        showIntroCard: Bool,
+        exportQuality: ExportQualityMode
+    ) async throws -> HighlightVideo {
+        let outputURL = try await MediaExtractor.renderHighlight(
+            from: sourceURL,
+            plan: plan,
+            transcript: renderedTranscript,
+            aspectMode: aspectMode,
+            showIntroCard: showIntroCard,
+            exportQuality: exportQuality)
+        let durationSeconds = showIntroCard
+            ? plan.duration
+            : plan.segments.reduce(0) { $0 + $1.duration }
+        return HighlightVideo(
+            plan: plan,
+            url: outputURL,
+            aspectMode: aspectMode,
+            showIntroCard: showIntroCard,
+            sourceTranscript: sourceTranscript,
+            renderedTranscript: renderedTranscript,
+            durationSeconds: durationSeconds)
+    }
+
+    private func renderTranslatedVideo(
+        sourceURL: URL,
+        renderedTranscript: Transcript,
+        durationSeconds: Double,
+        aspectMode: HighlightAspectMode,
+        exportQuality: ExportQualityMode
+    ) async throws -> TranslatedVideo {
+        let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
+            from: sourceURL,
+            transcript: renderedTranscript,
+            aspectMode: aspectMode,
+            exportQuality: exportQuality)
+        return TranslatedVideo(
+            url: outputURL,
+            renderedTranscript: renderedTranscript,
+            durationSeconds: durationSeconds,
+            aspectMode: aspectMode)
+    }
+
+    func generateHighlightPublishingCopy(settings: AppSettings) async {
+        guard let highlightVideo, !isGeneratingHighlightCopy else { return }
+        highlightCopyError = nil
+        isGeneratingHighlightCopy = true
+        defer { isGeneratingHighlightCopy = false }
+
+        do {
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
+            let transcriptContext = highlightPublishingTranscriptContext(highlightVideo)
+            let result = try await mimo.captionHighlight(
+                plan: highlightVideo.plan,
+                transcriptContext: transcriptContext,
+                languageOverride: settings.languageOverride,
+                styleExamples: settings.styleExamples)
+            highlightVariants = result.variants
+        } catch {
+            highlightCopyError = error.localizedDescription
+        }
+    }
+
+    func generateTranslatedPublishingCopy(settings: AppSettings) async {
+        guard let translatedVideo, !isGeneratingHighlightCopy else { return }
+        highlightCopyError = nil
+        isGeneratingHighlightCopy = true
+        defer { isGeneratingHighlightCopy = false }
+
+        do {
+            let title = job?.fileName.replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+                ?? "Translated video"
+            let plan = HighlightPlan(
+                title: title,
+                summary: "Subtitled video generated from the source.",
+                segments: [
+                    HighlightSegment(
+                        start: 0,
+                        end: translatedVideo.durationSeconds,
+                        title: title,
+                        why: "")
+                ])
+            let transcriptContext = translatedVideo.renderedTranscript.segments
+                .map(\.text)
+                .map(\.trimmed)
+                .filter { !$0.isEmpty }
+                .joined(separator: "\n")
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
+            let result = try await mimo.captionHighlight(
+                plan: plan,
+                transcriptContext: transcriptContext,
+                languageOverride: settings.languageOverride,
+                styleExamples: settings.styleExamples)
+            translatedVariants = result.variants
+        } catch {
+            highlightCopyError = error.localizedDescription
         }
     }
 
@@ -516,11 +802,17 @@ final class WorkspaceModel {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
         cleanupTranslatedTempFile()
+        cleanupReviewOutputTempFiles()
         job = nil
         variants = []
         clips = []
         highlightVideo = nil
+        highlightVariants = []
+        translatedVariants = []
+        highlightCopyError = nil
         translatedVideo = nil
+        pendingSubtitleReview = nil
+        reviewRenderOutputs = []
         detectedLanguage = nil
         publishReport = nil
         publishError = nil
@@ -546,6 +838,13 @@ final class WorkspaceModel {
     private func cleanupTranslatedTempFile() {
         if let url = translatedVideo?.url {
             try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private func cleanupReviewOutputTempFiles() {
+        let preserved = Set([highlightVideo?.url, translatedVideo?.url].compactMap(\.self))
+        for output in reviewRenderOutputs where !preserved.contains(output.url) {
+            try? FileManager.default.removeItem(at: output.url)
         }
     }
 
@@ -631,8 +930,71 @@ final class WorkspaceModel {
     }
 }
 
+private func highlightPublishingTranscriptContext(_ highlight: HighlightVideo) -> String {
+    let transcript = highlight.renderedTranscript ?? highlight.sourceTranscript
+    guard let transcript else {
+        let segmentLines = highlight.plan.segments.map {
+            "\($0.rangeLabel) \($0.title)\($0.why.isEmpty ? "" : ". \($0.why)")"
+        }
+        return ([highlight.plan.summary] + segmentLines)
+            .map(\.trimmed)
+            .filter { !$0.isEmpty }
+            .joined(separator: "\n")
+    }
+
+    var lines: [String] = []
+    for segment in highlight.plan.segments {
+        let cues = transcript.segments.filter { cue in
+            cue.end > segment.start && cue.start < segment.end
+        }
+        guard !cues.isEmpty else { continue }
+        lines.append("[\(segment.rangeLabel)] \(segment.title)")
+        for cue in cues {
+            let text = cue.text.trimmed
+            if !text.isEmpty {
+                lines.append(text)
+            }
+        }
+    }
+    return lines.joined(separator: "\n")
+}
+
+private func outputTimelineTranscript(
+    for plan: HighlightPlan,
+    transcript: Transcript,
+    showIntroCard: Bool
+) -> Transcript {
+    var output: [TranscriptSegment] = []
+    var cursor = showIntroCard ? HighlightPlan.introDuration : 0
+    for segment in plan.segments {
+        for cue in transcript.segments where cue.end > segment.start && cue.start < segment.end {
+            let sourceStart = max(cue.start, segment.start)
+            let sourceEnd = min(cue.end, segment.end)
+            guard sourceEnd - sourceStart >= 0.2 else { continue }
+            output.append(TranscriptSegment(
+                start: cursor + (sourceStart - segment.start),
+                end: cursor + (sourceEnd - segment.start),
+                text: cue.text,
+                speakerID: cue.speakerID))
+        }
+        cursor += segment.duration
+    }
+    return Transcript(segments: output, language: transcript.language)
+}
+
 private extension Array where Element == TranscriptSegment {
     func translatedTranscript(language: String) -> Transcript {
         Transcript(segments: self, language: language)
+    }
+}
+
+private enum SubtitleReviewError: LocalizedError {
+    case missingHighlightPlan
+
+    var errorDescription: String? {
+        switch self {
+        case .missingHighlightPlan:
+            return "The reviewed highlight subtitles no longer have a highlight plan."
+        }
     }
 }

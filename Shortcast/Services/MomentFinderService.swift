@@ -237,8 +237,8 @@ final class MomentFinderService {
     static func captioningPrompt(language: String?, styleExamples: String) -> String {
         let lang = (language ?? "").trimmed
         let languageRule = lang.isEmpty
-            ? "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, and notes) in the same language spoken in the video. Do not translate them to English. Keep only JSON keys and legacy platform ids in English."
-            : "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, and notes) in this language: \(lang). Use \(lang) even if the transcript is in another language. Keep only JSON keys and legacy platform ids in English."
+            ? "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, captions, and hashtags) in the same language spoken in the video. Do not translate them to English. Keep only JSON keys and legacy platform ids in English."
+            : "Write ALL user-facing text values (why, hook, overlay, titles, descriptions, captions, and hashtags) in this language: \(lang). Use \(lang) even if the transcript is in another language. Keep only JSON keys and legacy platform ids in English."
 
         let style = styleExamples.trimmed
         let styleRule = style.isEmpty ? "" : """
@@ -248,16 +248,19 @@ final class MomentFinderService {
         """
 
         return """
-        You are an expert educational video editor. I will give you a \
+        You are an expert short-form publishing editor. I will give you a \
         long-video transcript with timestamps. Your job is to find the best \
-        self-contained learning moments, AND to write a concise review package \
-        for each clip.
+        self-contained moments, AND to write ready-to-edit captions and hashtag \
+        suggestions for each clip.
 
         Rules:
         - Each clip must be 15 to 50 seconds. Keep one complete idea; never cut mid-thought.
         - Return 3 to 6 clips, ordered from most useful to least useful.
         - \(languageRule)
-        - Keep hashtags as empty arrays; do not write social tags or calls to action.
+        - Hashtags are plain words, with NO leading "#".
+        - TikTok captions should be short and immediate; include 3-6 relevant hashtags.
+        - Instagram captions should be 2-4 short paragraphs with a useful call to action; include 20-30 relevant hashtags.
+        - YouTube descriptions should be clear and searchable; include 3-5 focused hashtags.
         - Return ONLY valid JSON, with no surrounding prose, using this EXACT shape:
         {"clips":[{
           "start":"MM:SS",
@@ -266,9 +269,9 @@ final class MomentFinderService {
           "hook":"plain-language title for the idea",
           "overlay":"very short on-screen label, 3-6 words",
           "captions":{
-            "tiktok":{"hook":"plain-language title, max 90 characters","description":"1-2 sentence summary","hashtags":[]},
-            "instagram":{"hook":"section title","description":"2-4 short paragraphs of study notes grounded in the transcript","hashtags":[]},
-            "youtube":{"hook":"concise chapter title, 40-60 characters","description":"clear summary suitable for a video description or chapter note","hashtags":[]}
+            "tiktok":{"hook":"scroll-stopping first line, max 90 characters","description":"short punchy caption","hashtags":["tag","tag","tag"]},
+            "instagram":{"hook":"strong first line","description":"2-4 short paragraphs with a useful call to action","hashtags":["tag","tag","tag"]},
+            "youtube":{"hook":"concise searchable title, 40-60 characters","description":"keyword-rich search-friendly description","hashtags":["tag","tag","tag"]}
           }
         }]}
         - Do not invent anything that is not in the transcript.\(styleRule)

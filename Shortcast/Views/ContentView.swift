@@ -42,6 +42,8 @@ struct ContentView: View {
             ResultsView()
         case .transcribing, .findingMoments, .translatingSubtitles, .renderingHighlight, .renderingTranslatedVideo:
             ShortsProgressView()
+        case .reviewingSubtitles:
+            SubtitleReviewView()
         case .highlightResults:
             HighlightResultsView()
         case .translatedVideoResults:

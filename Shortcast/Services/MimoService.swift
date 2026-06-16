@@ -93,6 +93,36 @@ struct MimoService: Sendable {
         return try JSONVariantParser.parse(raw)
     }
 
+    func captionHighlight(
+        plan: HighlightPlan,
+        transcriptContext: String,
+        languageOverride: String,
+        styleExamples: String
+    ) async throws -> GenerationResult {
+        let raw = try await complete(
+            system: PromptBuilder.buildTranscriptPrompt(
+                languageOverride: languageOverride,
+                styleExamples: styleExamples),
+            user: """
+            Suggested hook: \(plan.title)
+
+            Highlight summary:
+            \(plan.summary)
+
+            Selected segments:
+            \(plan.segments.map { "- \($0.rangeLabel): \($0.title)\($0.why.isEmpty ? "" : " — \($0.why)")" }.joined(separator: "\n"))
+
+            Highlight transcript:
+            \(transcriptContext)
+
+            Return the JSON package.
+            """,
+            maxTokens: 3072,
+            temperature: 0.7,
+            topP: 0.95)
+        return try JSONVariantParser.parse(raw)
+    }
+
     func checkConnection() async throws {
         _ = try await complete(
             system: "You are MiMo, an AI assistant developed by Xiaomi. Return exactly: ok",

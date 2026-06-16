@@ -5,32 +5,51 @@ import UniformTypeIdentifiers
 
 struct HighlightResultsView: View {
 
+    @Environment(AppSettings.self) private var settings
     @Environment(WorkspaceModel.self) private var workspace
     @State private var player: AVPlayer?
     @State private var exportError: String?
 
     var body: some View {
+        @Bindable var settings = settings
+        @Bindable var workspace = workspace
+
         VStack(spacing: 0) {
             header
             Divider()
 
             if let highlight = workspace.highlightVideo {
-                HStack(alignment: .top, spacing: 22) {
-                    ZStack {
-                        Color.black
-                        if let player {
-                            VideoPlayer(player: player)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        HStack(alignment: .top, spacing: 22) {
+                            ZStack {
+                                Color.black
+                                if let player {
+                                    VideoPlayer(player: player)
+                                }
+                            }
+                            .aspectRatio(highlight.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
+                                         contentMode: .fit)
+                            .frame(maxWidth: 620, maxHeight: 620)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                            details(highlight)
+                                .frame(width: 330, alignment: .topLeading)
+                        }
+
+                        Toggle(isOn: $settings.suggestHighlightPublishingCopy) {
+                            Label("Suggest captions and hashtags", systemImage: "number")
+                                .font(.headline)
+                        }
+                        .toggleStyle(.switch)
+
+                        if settings.suggestHighlightPublishingCopy {
+                            publishingCopyPanel(highlight)
                         }
                     }
-                    .aspectRatio(highlight.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
-                                 contentMode: .fit)
-                    .frame(maxWidth: 620, maxHeight: 620)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    details(highlight)
-                        .frame(width: 330, alignment: .topLeading)
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task {
                     let p = AVPlayer(url: highlight.url)
@@ -46,6 +65,62 @@ struct HighlightResultsView: View {
             Divider()
             footer
         }
+    }
+
+    @ViewBuilder
+    private func publishingCopyPanel(_ highlight: HighlightVideo) -> some View {
+        @Bindable var workspace = workspace
+
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Publishing copy")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Editable captions and hashtags for the rendered highlight.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if workspace.isGeneratingHighlightCopy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button {
+                        Task { await workspace.generateHighlightPublishingCopy(settings: settings) }
+                    } label: {
+                        Label(workspace.highlightVariants.isEmpty ? "Generate" : "Regenerate",
+                              systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(settings.mimoAPIKey.trimmed.isEmpty)
+                    .help(settings.mimoAPIKey.trimmed.isEmpty
+                          ? "Add a MiMo API key in Settings first."
+                          : "Generate caption and hashtag suggestions")
+                }
+            }
+
+            if let error = workspace.highlightCopyError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else if settings.mimoAPIKey.trimmed.isEmpty {
+                Label("Add a MiMo API key in Settings to generate captions and hashtags.",
+                      systemImage: "key")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !workspace.highlightVariants.isEmpty {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach($workspace.highlightVariants) { $variant in
+                        PostPreviewCard(variant: $variant, videoURL: highlight.url)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
     }
 
     private var header: some View {
@@ -243,32 +318,51 @@ struct HighlightResultsView: View {
 
 struct TranslatedVideoResultsView: View {
 
+    @Environment(AppSettings.self) private var settings
     @Environment(WorkspaceModel.self) private var workspace
     @State private var player: AVPlayer?
     @State private var exportError: String?
 
     var body: some View {
+        @Bindable var settings = settings
+        @Bindable var workspace = workspace
+
         VStack(spacing: 0) {
             header
             Divider()
 
             if let translated = workspace.translatedVideo {
-                HStack(alignment: .top, spacing: 22) {
-                    ZStack {
-                        Color.black
-                        if let player {
-                            VideoPlayer(player: player)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        HStack(alignment: .top, spacing: 22) {
+                            ZStack {
+                                Color.black
+                                if let player {
+                                    VideoPlayer(player: player)
+                                }
+                            }
+                            .aspectRatio(translated.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
+                                         contentMode: .fit)
+                            .frame(maxWidth: 620, maxHeight: 620)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                            details(translated)
+                                .frame(width: 330, alignment: .topLeading)
+                        }
+
+                        Toggle(isOn: $settings.suggestHighlightPublishingCopy) {
+                            Label("Suggest captions and hashtags", systemImage: "number")
+                                .font(.headline)
+                        }
+                        .toggleStyle(.switch)
+
+                        if settings.suggestHighlightPublishingCopy {
+                            publishingCopyPanel(translated)
                         }
                     }
-                    .aspectRatio(translated.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
-                                 contentMode: .fit)
-                    .frame(maxWidth: 620, maxHeight: 620)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                    details(translated)
-                        .frame(width: 330, alignment: .topLeading)
+                    .padding(24)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .task {
                     let p = AVPlayer(url: translated.url)
@@ -284,6 +378,62 @@ struct TranslatedVideoResultsView: View {
             Divider()
             footer
         }
+    }
+
+    @ViewBuilder
+    private func publishingCopyPanel(_ translated: TranslatedVideo) -> some View {
+        @Bindable var workspace = workspace
+
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Publishing copy")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Editable captions and hashtags for this subtitled video.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if workspace.isGeneratingHighlightCopy {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button {
+                        Task { await workspace.generateTranslatedPublishingCopy(settings: settings) }
+                    } label: {
+                        Label(workspace.translatedVariants.isEmpty ? "Generate" : "Regenerate",
+                              systemImage: "wand.and.stars")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(settings.mimoAPIKey.trimmed.isEmpty)
+                    .help(settings.mimoAPIKey.trimmed.isEmpty
+                          ? "Add a MiMo API key in Settings first."
+                          : "Generate caption and hashtag suggestions")
+                }
+            }
+
+            if let error = workspace.highlightCopyError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else if settings.mimoAPIKey.trimmed.isEmpty {
+                Label("Add a MiMo API key in Settings to generate captions and hashtags.",
+                      systemImage: "key")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !workspace.translatedVariants.isEmpty {
+                HStack(alignment: .top, spacing: 16) {
+                    ForEach($workspace.translatedVariants) { $variant in
+                        PostPreviewCard(variant: $variant, videoURL: translated.url)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
     }
 
     private var header: some View {
