@@ -231,13 +231,14 @@ final class WorkspaceModel {
                 plan: plan,
                 settings: settings,
                 mimo: mimo)
-            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue)")
+            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue), quality=\(settings.exportQualityMode.rawValue)")
             let outputURL = try await MediaExtractor.renderHighlight(
                 from: job.url,
                 plan: plan,
                 transcript: renderTranscript,
                 aspectMode: settings.highlightAspectMode,
-                showIntroCard: settings.showHighlightIntroCard)
+                showIntroCard: settings.showHighlightIntroCard,
+                exportQuality: settings.exportQualityMode)
             let durationSeconds = settings.showHighlightIntroCard
                 ? plan.duration
                 : plan.segments.reduce(0) { $0 + $1.duration }
@@ -316,10 +317,12 @@ final class WorkspaceModel {
             try Task.checkCancellation()
 
             phase = .renderingTranslatedVideo
+            Self.log("render translated video — aspect=\(settings.highlightAspectMode.rawValue), quality=\(settings.exportQualityMode.rawValue)")
             let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
                 from: job.url,
                 transcript: renderedTranscript,
-                aspectMode: settings.highlightAspectMode)
+                aspectMode: settings.highlightAspectMode,
+                exportQuality: settings.exportQualityMode)
             translatedVideo = TranslatedVideo(
                 url: outputURL,
                 renderedTranscript: renderedTranscript,

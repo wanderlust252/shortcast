@@ -199,3 +199,34 @@ enum HighlightAspectMode: String, CaseIterable, Identifiable, Codable, Sendable 
         }
     }
 }
+
+enum ExportQualityMode: String, CaseIterable, Identifiable, Codable, Sendable {
+    case automatic
+    case smallerFile
+    case balanced
+    case highestQuality
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .automatic: "Auto"
+        case .smallerFile: "Smaller file"
+        case .balanced: "Balanced"
+        case .highestQuality: "Highest quality"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .automatic:
+            "Chooses a sensible bitrate from the output size and source bitrate."
+        case .smallerFile:
+            "Keeps exports compact; best for lectures, slides, and sharing."
+        case .balanced:
+            "Uses a moderate bitrate for cleaner motion and readable subtitles."
+        case .highestQuality:
+            "Lets AVFoundation preserve maximum quality; files can become very large."
+        }
+    }
+}

@@ -265,6 +265,11 @@ final class AppSettings {
         didSet { defaults.set(highlightSubtitleLanguage.rawValue, forKey: Keys.highlightSubtitleLanguage) }
     }
 
+    /// Compression quality for rendered highlight and translated-video outputs.
+    var exportQualityMode: ExportQualityMode {
+        didSet { defaults.set(exportQualityMode.rawValue, forKey: Keys.exportQualityMode) }
+    }
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -315,6 +320,8 @@ final class AppSettings {
         self.showHighlightIntroCard = defaults.object(forKey: Keys.showHighlightIntroCard) as? Bool ?? false
         self.highlightSubtitleLanguage = defaults.string(forKey: Keys.highlightSubtitleLanguage)
             .flatMap(HighlightSubtitleLanguage.init) ?? .original
+        self.exportQualityMode = defaults.string(forKey: Keys.exportQualityMode)
+            .flatMap(ExportQualityMode.init) ?? .automatic
     }
 
     /// True once the app has enough to publish.
@@ -392,6 +399,7 @@ final class AppSettings {
         static let highlightAspect = "shortcast.highlight.aspectMode"
         static let showHighlightIntroCard = "shortcast.highlight.showIntroCard"
         static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
+        static let exportQualityMode = "shortcast.export.qualityMode"
         static let apiKey      = "shortcast.apiKey"
         /// Old Keychain account, read once to migrate into UserDefaults.
         static let legacyApiKey = "upload-post-api-key"

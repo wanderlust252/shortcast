@@ -168,7 +168,8 @@ enum MediaExtractor {
         plan: HighlightPlan,
         transcript: Transcript,
         aspectMode: HighlightAspectMode,
-        showIntroCard: Bool
+        showIntroCard: Bool,
+        exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
@@ -251,17 +252,22 @@ enum MediaExtractor {
             transcript: transcript,
             showIntroCard: showIntroCard)
 
-        guard let export = AVAssetExportSession(
-            asset: composition, presetName: AVAssetExportPresetHighestQuality)
+        guard let export = makeExportSession(asset: composition, quality: exportQuality)
         else { throw MediaExtractorError.clipExportFailed("export session unavailable") }
         export.videoComposition = videoComposition
         export.audioMix = makeAudioMix(placements: placements, transitions: transitions)
+        let exportPlan = configureExport(
+            export,
+            quality: exportQuality,
+            sourceURL: url,
+            duration: CMTimeGetSeconds(composition.duration),
+            renderSize: renderSize)
 
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("shortcast-highlight-\(UUID().uuidString).mp4")
         ShortcastTrace.log(
             "render",
-            "export start output=\(outputURL.path) compositionDuration=\(CMTimeGetSeconds(composition.duration)) instructions=\(videoComposition.instructions.count) renderSize=\(videoComposition.renderSize)")
+            "export start output=\(outputURL.path) compositionDuration=\(CMTimeGetSeconds(composition.duration)) instructions=\(videoComposition.instructions.count) renderSize=\(videoComposition.renderSize) quality=\(exportQuality.rawValue) preset=\(export.presetName) \(exportPlan.logSummary)")
         do {
             try await export.export(to: outputURL, as: .mp4)
             ShortcastTrace.log("render", "export succeeded output=\(outputURL.path)")
@@ -282,7 +288,8 @@ enum MediaExtractor {
     static func renderSubtitledFullVideo(
         from url: URL,
         transcript: Transcript,
-        aspectMode: HighlightAspectMode
+        aspectMode: HighlightAspectMode,
+        exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
         guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
@@ -332,16 +339,21 @@ enum MediaExtractor {
             transcript: transcript,
             totalDuration: sourceDuration)
 
-        guard let export = AVAssetExportSession(
-            asset: composition, presetName: AVAssetExportPresetHighestQuality)
+        guard let export = makeExportSession(asset: composition, quality: exportQuality)
         else { throw MediaExtractorError.clipExportFailed("export session unavailable") }
         export.videoComposition = videoComposition
+        let exportPlan = configureExport(
+            export,
+            quality: exportQuality,
+            sourceURL: url,
+            duration: CMTimeGetSeconds(composition.duration),
+            renderSize: renderSize)
 
         let outputURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("shortcast-translated-\(UUID().uuidString).mp4")
         ShortcastTrace.log(
             "render",
-            "full translation export start output=\(outputURL.path) compositionDuration=\(CMTimeGetSeconds(composition.duration)) instructions=\(videoComposition.instructions.count) renderSize=\(videoComposition.renderSize)")
+            "full translation export start output=\(outputURL.path) compositionDuration=\(CMTimeGetSeconds(composition.duration)) instructions=\(videoComposition.instructions.count) renderSize=\(videoComposition.renderSize) quality=\(exportQuality.rawValue) preset=\(export.presetName) \(exportPlan.logSummary)")
         do {
             try await export.export(to: outputURL, as: .mp4)
             ShortcastTrace.log("render", "full translation export succeeded output=\(outputURL.path)")
@@ -374,6 +386,109 @@ enum MediaExtractor {
         let audioTrack: AVCompositionTrack?
 
         var timelineEnd: Double { timelineStart + duration }
+    }
+
+    private struct ExportPlan {
+        let targetBitrateMbps: Double?
+        let estimatedBytes: Int64?
+        let sourceBitrateMbps: Double?
+
+        var logSummary: String {
+            let source = sourceBitrateMbps.map { String(format: "sourceBitrate=%.2fMbps", $0) }
+                ?? "sourceBitrate=?"
+            let target = targetBitrateMbps.map { String(format: "targetBitrate=%.2fMbps", $0) }
+                ?? "targetBitrate=unlimited"
+            let size = estimatedBytes.map { "estimatedLimit=\(Self.formatBytes($0))" }
+                ?? "estimatedLimit=none"
+            return "\(source) \(target) \(size)"
+        }
+
+        private static func formatBytes(_ bytes: Int64) -> String {
+            let mib = Double(bytes) / 1_048_576
+            if mib >= 1024 {
+                return String(format: "%.2fGiB", mib / 1024)
+            }
+            return String(format: "%.0fMiB", mib)
+        }
+    }
+
+    private static func makeExportSession(
+        asset: AVAsset,
+        quality: ExportQualityMode
+    ) -> AVAssetExportSession? {
+        // Keep the high-quality preset so AVFoundation preserves our explicit
+        // videoComposition render size; fileLengthLimit below guides bitrate.
+        let preferredPreset = AVAssetExportPresetHighestQuality
+        _ = quality
+        if let export = AVAssetExportSession(asset: asset, presetName: preferredPreset) {
+            return export
+        }
+        return AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality)
+    }
+
+    @discardableResult
+    private static func configureExport(
+        _ export: AVAssetExportSession,
+        quality: ExportQualityMode,
+        sourceURL: URL,
+        duration: Double,
+        renderSize: CGSize
+    ) -> ExportPlan {
+        let sourceBitrate = sourceBitrateMbps(sourceURL: sourceURL, duration: duration)
+        let targetBitrate = targetBitrateMbps(
+            quality: quality,
+            sourceBitrateMbps: sourceBitrate,
+            renderSize: renderSize)
+        let estimatedBytes = targetBitrate.map { bitrate in
+            Int64((bitrate * 1_000_000 / 8 * max(duration, 1)).rounded())
+        }
+        if let estimatedBytes {
+            export.fileLengthLimit = estimatedBytes
+        }
+        return ExportPlan(
+            targetBitrateMbps: targetBitrate,
+            estimatedBytes: estimatedBytes,
+            sourceBitrateMbps: sourceBitrate)
+    }
+
+    private static func sourceBitrateMbps(sourceURL: URL, duration: Double) -> Double? {
+        guard duration > 0,
+              let fileSize = try? sourceURL.resourceValues(forKeys: [.fileSizeKey]).fileSize,
+              fileSize > 0 else {
+            return nil
+        }
+        return Double(fileSize) * 8 / duration / 1_000_000
+    }
+
+    private static func targetBitrateMbps(
+        quality: ExportQualityMode,
+        sourceBitrateMbps: Double?,
+        renderSize: CGSize
+    ) -> Double? {
+        guard quality != .highestQuality else { return nil }
+
+        let pixels = renderSize.width * renderSize.height
+        let resolutionBand: (compact: Double, autoFloor: Double, autoCeiling: Double, balanced: Double)
+        if pixels >= 2_000_000 {
+            resolutionBand = (compact: 3.0, autoFloor: 3.5, autoCeiling: 6.0, balanced: 6.0)
+        } else if pixels >= 900_000 {
+            resolutionBand = (compact: 2.0, autoFloor: 2.5, autoCeiling: 4.5, balanced: 4.5)
+        } else {
+            resolutionBand = (compact: 1.2, autoFloor: 1.8, autoCeiling: 3.0, balanced: 3.0)
+        }
+
+        switch quality {
+        case .smallerFile:
+            return resolutionBand.compact
+        case .balanced:
+            return resolutionBand.balanced
+        case .automatic:
+            let sourceAware = sourceBitrateMbps.map { max($0 * 2.5, resolutionBand.autoFloor) }
+                ?? resolutionBand.autoFloor
+            return min(sourceAware, resolutionBand.autoCeiling)
+        case .highestQuality:
+            return nil
+        }
     }
 
     private static func makeTransitions(for segments: [RenderSegment]) -> [Double] {

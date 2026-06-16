@@ -167,7 +167,7 @@ struct SettingsView: View {
                 pipelineRole(
                     step: "3", icon: "film",
                     title: "Render",
-                    model: settings.highlightAspectMode.displayName,
+                    model: "\(settings.highlightAspectMode.displayName) · \(settings.exportQualityMode.displayName)",
                     detail: "Cuts the selected source ranges and joins them into one downloadable video.",
                     status: nil)
             }
@@ -191,6 +191,14 @@ struct SettingsView: View {
                     }
                 }
                 Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues with context, then formats them for readable subtitle lines.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Picker("Output quality", selection: $settings.exportQualityMode) {
+                    ForEach(ExportQualityMode.allCases) { quality in
+                        Text(quality.displayName).tag(quality)
+                    }
+                }
+                Text(settings.exportQualityMode.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
