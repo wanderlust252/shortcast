@@ -25,9 +25,9 @@ struct DropZoneView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 460)
+            .frame(maxWidth: 620)
 
-            if workspace.inputMode == .shorts {
+            if workspace.inputMode == .shorts || workspace.inputMode == .translateFullVideo {
                 Picker("Aspect ratio", selection: $settings.highlightAspectMode) {
                     ForEach(HighlightAspectMode.allCases) { mode in
                         Text(mode.displayName).tag(mode)
@@ -50,7 +50,7 @@ struct DropZoneView: View {
 
             Spacer()
 
-            Text("The video stays on your Mac. For highlights, the timestamped transcript is sent to MiMo to plan the edit.")
+            Text(privacyNote)
                 .font(.footnote)
                 .foregroundStyle(.tertiary)
         }
@@ -96,5 +96,16 @@ struct DropZoneView: View {
                     style: StrokeStyle(lineWidth: 2, dash: [9, 7]))
         )
         .animation(.easeInOut(duration: 0.15), value: isDropTargeted)
+    }
+
+    private var privacyNote: String {
+        switch workspace.inputMode {
+        case .shorts:
+            "The video stays on your Mac. For highlights, the timestamped transcript is sent to MiMo to plan the edit."
+        case .translateFullVideo:
+            "The video stays on your Mac. For translation, subtitle text is sent to MiMo in chunks."
+        case .caption:
+            "The video stays on your Mac. Legacy summaries only load Gemma when this mode runs."
+        }
     }
 }

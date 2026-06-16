@@ -56,8 +56,12 @@ struct ShortsProgressView: View {
             }
         case .findingMoments:
             return "Planning the highlight…"
+        case .translatingSubtitles:
+            return "Translating subtitles…"
         case .renderingHighlight:
             return "Rendering the highlight…"
+        case .renderingTranslatedVideo:
+            return "Rendering translated video…"
         default:
             return "Working…"
         }
@@ -73,8 +77,12 @@ struct ShortsProgressView: View {
             }
         case .findingMoments:
             return "MiMo is reading the transcript and choosing the strongest learning path."
+        case .translatingSubtitles:
+            return "MiMo is translating the subtitle cues into natural Vietnamese."
         case .renderingHighlight:
             return "Cutting the selected sections and joining them into one video."
+        case .renderingTranslatedVideo:
+            return "Burning Vietnamese subtitles across the full source timeline."
         default:
             return nil
         }

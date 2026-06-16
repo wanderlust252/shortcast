@@ -1,9 +1,10 @@
 import Foundation
 import Observation
 
-/// Drives the main window's state machine. Two flows share it:
+/// Drives the main window's state machine. Three flows share it:
 ///  - short video → one set of editable legacy summaries.
 ///  - long video → transcribe → plan + render one subtitled highlight video.
+///  - long video → transcribe → translate + render full subtitled video.
 @MainActor
 @Observable
 final class WorkspaceModel {
@@ -12,6 +13,7 @@ final class WorkspaceModel {
     /// drop screen rather than guessed from the video's length.
     enum InputMode: String, CaseIterable, Identifiable, Sendable {
         case shorts    // long video → render one educational highlight video
+        case translateFullVideo // long video → render full video with Vietnamese subtitles
         case caption   // short video → legacy summaries
 
         var id: String { rawValue }
@@ -20,6 +22,7 @@ final class WorkspaceModel {
             switch self {
             case .caption: "Summarize a short"
             case .shorts:  "Make highlight video"
+            case .translateFullVideo: "Translate full video"
             }
         }
 
@@ -27,6 +30,7 @@ final class WorkspaceModel {
             switch self {
             case .caption: "Drop a short clip here"
             case .shorts:  "Drop a lecture, podcast or interview here"
+            case .translateFullVideo: "Drop a video to translate here"
             }
         }
 
@@ -34,6 +38,7 @@ final class WorkspaceModel {
             switch self {
             case .caption: "Up to 60 seconds — write grounded notes"
             case .shorts:  "We'll remove the rambling and render one 5-15 minute highlight"
+            case .translateFullVideo: "Render the whole video with Vietnamese subtitles"
             }
         }
 
@@ -41,6 +46,7 @@ final class WorkspaceModel {
             switch self {
             case .caption: "film.stack"
             case .shorts:  "sparkles.tv"
+            case .translateFullVideo: "captions.bubble"
             }
         }
     }
@@ -57,8 +63,11 @@ final class WorkspaceModel {
         // Long-video highlight flow:
         case transcribing
         case findingMoments
+        case translatingSubtitles
         case renderingHighlight
         case highlightResults
+        case renderingTranslatedVideo
+        case translatedVideoResults
         case shortsResults
     }
 
@@ -74,6 +83,9 @@ final class WorkspaceModel {
 
     /// The rendered long-video highlight.
     var highlightVideo: HighlightVideo?
+
+    /// The rendered full-length Vietnamese subtitle translation.
+    var translatedVideo: TranslatedVideo?
 
     /// Owns transcription (sidecar `.srt`/`.vtt` or on-device WhisperKit).
     let transcription = TranscriptionService()
@@ -95,6 +107,7 @@ final class WorkspaceModel {
     var isBusy: Bool {
         switch phase {
         case .processing, .transcribing, .findingMoments, .renderingHighlight: return true
+        case .translatingSubtitles, .renderingTranslatedVideo: return true
         default: return false
         }
     }
@@ -121,6 +134,8 @@ final class WorkspaceModel {
             await processSingleVideo(job: newJob, modelManager: modelManager, settings: settings)
         case .shorts:
             startShortsPipeline(job: newJob, modelManager: modelManager, settings: settings)
+        case .translateFullVideo:
+            startTranslationPipeline(job: newJob, settings: settings)
         }
     }
 
@@ -159,9 +174,11 @@ final class WorkspaceModel {
     private func startShortsPipeline(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
+        cleanupTranslatedTempFile()
         job = newJob
         clips = []
         highlightVideo = nil
+        translatedVideo = nil
         variants = []
         pipelineError = nil
         phase = .transcribing
@@ -239,6 +256,7 @@ final class WorkspaceModel {
             cleanupHighlightTempFile()
             clips = []
             highlightVideo = nil
+            translatedVideo = nil
             self.job = nil
             phase = .empty
         } catch {
@@ -247,8 +265,109 @@ final class WorkspaceModel {
             self.job = nil
             clips = []
             highlightVideo = nil
+            translatedVideo = nil
             phase = .empty
         }
+    }
+
+    // MARK: - Full-video translation flow
+
+    private func startTranslationPipeline(job newJob: VideoJob, settings: AppSettings) {
+        cleanupClipTempFiles()
+        cleanupHighlightTempFile()
+        cleanupTranslatedTempFile()
+        job = newJob
+        clips = []
+        highlightVideo = nil
+        translatedVideo = nil
+        variants = []
+        pipelineError = nil
+        phase = .transcribing
+
+        pipelineTask = Task {
+            await self.runTranslationPipeline(job: newJob, settings: settings)
+        }
+    }
+
+    private func runTranslationPipeline(job: VideoJob, settings: AppSettings) async {
+        let pipelineStart = Date()
+        Self.log("translation pipeline start")
+        do {
+            phase = .transcribing
+            let mimo = MimoService(
+                apiKey: settings.mimoAPIKey,
+                modelID: settings.mimoModelID,
+                baseURL: settings.mimoBaseURL)
+            let transcript = try await transcription.transcript(
+                for: job.url,
+                languageHint: settings.languageOverride,
+                backend: settings.transcriptionBackend,
+                mimo: mimo)
+            let transcriptLanguage = transcript.contentLanguage ?? transcript.language
+            Self.log("translation transcript ready — whisper=\(transcript.language ?? "?"), text=\(transcriptLanguage ?? "?")")
+            try Task.checkCancellation()
+
+            phase = .translatingSubtitles
+            let renderedTranscript = try await transcriptForFullVideoTranslation(
+                transcript,
+                settings: settings,
+                mimo: mimo)
+            Self.log("translated full-video subtitles — cues=\(renderedTranscript.segments.count)")
+            try Task.checkCancellation()
+
+            phase = .renderingTranslatedVideo
+            let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
+                from: job.url,
+                transcript: renderedTranscript,
+                aspectMode: settings.highlightAspectMode)
+            translatedVideo = TranslatedVideo(
+                url: outputURL,
+                renderedTranscript: renderedTranscript,
+                durationSeconds: job.durationSeconds,
+                aspectMode: settings.highlightAspectMode)
+            phase = .translatedVideoResults
+            Self.log("translated video rendered; pipeline done in \(Self.elapsed(since: pipelineStart)) total")
+        } catch is CancellationError {
+            cleanupClipTempFiles()
+            cleanupHighlightTempFile()
+            cleanupTranslatedTempFile()
+            clips = []
+            highlightVideo = nil
+            translatedVideo = nil
+            self.job = nil
+            phase = .empty
+        } catch {
+            pipelineError = error.localizedDescription
+            errorMessage = "Couldn't translate that video. \(error.localizedDescription)"
+            self.job = nil
+            clips = []
+            highlightVideo = nil
+            translatedVideo = nil
+            phase = .empty
+        }
+    }
+
+    private func transcriptForFullVideoTranslation(
+        _ transcript: Transcript,
+        settings: AppSettings,
+        mimo: MimoService
+    ) async throws -> Transcript {
+        let targetLanguage = "Vietnamese"
+        let transcriptLanguage = transcript.contentLanguage ?? transcript.language
+        let context = SubtitleContextBuilder.makeFullVideoContext(
+            transcript: transcript,
+            targetLanguage: targetLanguage,
+            sourceLanguage: transcriptLanguage)
+
+        if TranscriptionService.languageCode(from: transcriptLanguage ?? "") == "vi" {
+            Self.log("proofread Vietnamese full-video subtitles — cues=\(transcript.segments.count)")
+            return try await mimo.proofreadVietnameseSubtitleSegments(transcript.segments, context: context)
+                .translatedTranscript(language: "vi")
+        }
+
+        Self.log("translate full-video subtitles — target=\(targetLanguage), cues=\(transcript.segments.count)")
+        return try await mimo.translateSubtitleSegments(transcript.segments, context: context)
+            .translatedTranscript(language: "vi")
     }
 
     private func transcriptForHighlightSubtitles(
@@ -393,10 +512,12 @@ final class WorkspaceModel {
         pipelineTask?.cancel()
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
+        cleanupTranslatedTempFile()
         job = nil
         variants = []
         clips = []
         highlightVideo = nil
+        translatedVideo = nil
         detectedLanguage = nil
         publishReport = nil
         publishError = nil
@@ -415,6 +536,12 @@ final class WorkspaceModel {
 
     private func cleanupHighlightTempFile() {
         if let url = highlightVideo?.url {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private func cleanupTranslatedTempFile() {
+        if let url = translatedVideo?.url {
             try? FileManager.default.removeItem(at: url)
         }
     }
@@ -498,5 +625,11 @@ final class WorkspaceModel {
                 break
             }
         }
+    }
+}
+
+private extension Array where Element == TranscriptSegment {
+    func translatedTranscript(language: String) -> Transcript {
+        Transcript(segments: self, language: language)
     }
 }

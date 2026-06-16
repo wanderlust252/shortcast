@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import Foundation
 import QuartzCore
+import Vision
 
 enum ShortcastTrace {
     private static let subsystem = "shortcast"
@@ -275,6 +276,86 @@ enum MediaExtractor {
         }
     }
 
+    /// Renders the entire source video with burned-in subtitles. Unlike
+    /// `renderHighlight`, this keeps the source timeline intact: no intro card,
+    /// cuts, joins, or transitions.
+    static func renderSubtitledFullVideo(
+        from url: URL,
+        transcript: Transcript,
+        aspectMode: HighlightAspectMode
+    ) async throws -> URL {
+        let asset = AVURLAsset(url: url)
+        guard let videoTrack = try await asset.loadTracks(withMediaType: .video).first else {
+            throw MediaExtractorError.noVideoTrack
+        }
+        let sourceDuration = CMTimeGetSeconds(try await asset.load(.duration))
+        let audioTrack = try await asset.loadTracks(withMediaType: .audio).first
+        let transform = try await videoTrack.load(.preferredTransform)
+        let naturalSize = try await videoTrack.load(.naturalSize)
+        ShortcastTrace.log(
+            "render",
+            "full translation start source=\(url.path) duration=\(sourceDuration) natural=\(naturalSize) aspect=\(aspectMode.rawValue) transcriptSegments=\(transcript.segments.count) hasAudio=\(audioTrack != nil)")
+
+        let composition = AVMutableComposition()
+        guard let compVideo = composition.addMutableTrack(
+            withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+        else { throw MediaExtractorError.clipExportFailed("no video track") }
+
+        let sourceRange = CMTimeRange(
+            start: .zero,
+            duration: CMTime(seconds: sourceDuration, preferredTimescale: 600))
+        try compVideo.insertTimeRange(sourceRange, of: videoTrack, at: .zero)
+
+        if let audioTrack,
+           let compAudio = composition.addMutableTrack(
+            withMediaType: .audio,
+            preferredTrackID: kCMPersistentTrackID_Invalid) {
+            try? compAudio.insertTimeRange(sourceRange, of: audioTrack, at: .zero)
+        }
+
+        let renderSize = renderSize(
+            naturalSize: naturalSize,
+            transform: transform,
+            aspectMode: aspectMode)
+        let layerInstruction = AVMutableVideoCompositionLayerInstruction(assetTrack: compVideo)
+        configureFullVideoLayerInstruction(
+            layerInstruction,
+            sourceURL: url,
+            naturalSize: naturalSize,
+            transform: transform,
+            renderSize: renderSize,
+            aspectMode: aspectMode,
+            totalDuration: sourceDuration)
+        let videoComposition = makeFullVideoComposition(
+            layerInstruction: layerInstruction,
+            renderSize: renderSize,
+            transcript: transcript,
+            totalDuration: sourceDuration)
+
+        guard let export = AVAssetExportSession(
+            asset: composition, presetName: AVAssetExportPresetHighestQuality)
+        else { throw MediaExtractorError.clipExportFailed("export session unavailable") }
+        export.videoComposition = videoComposition
+
+        let outputURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("shortcast-translated-\(UUID().uuidString).mp4")
+        ShortcastTrace.log(
+            "render",
+            "full translation export start output=\(outputURL.path) compositionDuration=\(CMTimeGetSeconds(composition.duration)) instructions=\(videoComposition.instructions.count) renderSize=\(videoComposition.renderSize)")
+        do {
+            try await export.export(to: outputURL, as: .mp4)
+            ShortcastTrace.log("render", "full translation export succeeded output=\(outputURL.path)")
+            return outputURL
+        } catch {
+            let exportError = export.error.map(ShortcastTrace.describe) ?? "nil"
+            ShortcastTrace.log(
+                "render",
+                "full translation export failed thrown=\(ShortcastTrace.describe(error)) status=\(export.status.rawValue) exportError=\(exportError)")
+            try? FileManager.default.removeItem(at: outputURL)
+            throw MediaExtractorError.clipExportFailed(ShortcastTrace.describe(error))
+        }
+    }
+
     private struct RenderSegment {
         let segment: HighlightSegment
         let sourceStart: Double
@@ -347,6 +428,174 @@ enum MediaExtractor {
             .concatenating(translate)
     }
 
+    private struct FaceSample {
+        let time: Double
+        let midX: CGFloat?
+    }
+
+    private struct FullVideoPanKeyframe {
+        let time: Double
+        let cropX: CGFloat
+    }
+
+    private static func configureFullVideoLayerInstruction(
+        _ layer: AVMutableVideoCompositionLayerInstruction,
+        sourceURL: URL,
+        naturalSize: CGSize,
+        transform: CGAffineTransform,
+        renderSize: CGSize,
+        aspectMode: HighlightAspectMode,
+        totalDuration: Double
+    ) {
+        let oriented = naturalSize.applying(transform)
+        let orientedSize = CGSize(width: abs(oriented.width), height: abs(oriented.height))
+        guard aspectMode == .vertical, orientedSize.width > orientedSize.height else {
+            layer.setTransform(
+                videoTransform(
+                    naturalSize: naturalSize,
+                    transform: transform,
+                    renderSize: renderSize,
+                    aspectMode: aspectMode),
+                at: .zero)
+            return
+        }
+
+        let samples = sampleFacesForFullVideo(sourceURL: sourceURL, duration: totalDuration)
+        let withFace = samples.filter { $0.midX != nil }.count
+        let trackable = !samples.isEmpty && Double(withFace) / Double(samples.count) >= 0.4
+        guard trackable else {
+            ShortcastTrace.log(
+                "render",
+                "full translation face tracking unavailable faceSamples=\(withFace)/\(samples.count); using center crop")
+            layer.setTransform(
+                videoTransform(
+                    naturalSize: naturalSize,
+                    transform: transform,
+                    renderSize: renderSize,
+                    aspectMode: aspectMode),
+                at: .zero)
+            return
+        }
+
+        let keyframes = fullVideoPanPath(from: samples, orientedSize: orientedSize, renderSize: renderSize)
+        let frames = keyframes.isEmpty
+            ? [FullVideoPanKeyframe(time: 0, cropX: 0)]
+            : keyframes
+        ShortcastTrace.log(
+            "render",
+            "full translation face tracking enabled faceSamples=\(withFace)/\(samples.count) keyframes=\(frames.count)")
+        layer.setTransform(
+            fullVideoTrackingTransform(
+                cropX: frames[0].cropX,
+                base: transform,
+                orientedSize: orientedSize,
+                renderSize: renderSize),
+            at: .zero)
+        for index in 0..<(frames.count - 1) {
+            let startT = CMTime(seconds: frames[index].time, preferredTimescale: 600)
+            let endT = CMTime(seconds: frames[index + 1].time, preferredTimescale: 600)
+            guard endT > startT else { continue }
+            layer.setTransformRamp(
+                fromStart: fullVideoTrackingTransform(
+                    cropX: frames[index].cropX,
+                    base: transform,
+                    orientedSize: orientedSize,
+                    renderSize: renderSize),
+                toEnd: fullVideoTrackingTransform(
+                    cropX: frames[index + 1].cropX,
+                    base: transform,
+                    orientedSize: orientedSize,
+                    renderSize: renderSize),
+                timeRange: CMTimeRange(start: startT, end: endT))
+        }
+    }
+
+    private static func sampleFacesForFullVideo(sourceURL: URL, duration: Double) -> [FaceSample] {
+        let asset = AVURLAsset(url: sourceURL)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.25, preferredTimescale: 600)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.25, preferredTimescale: 600)
+        generator.maximumSize = CGSize(width: 512, height: 512)
+
+        var samples: [FaceSample] = []
+        var t = 0.0
+        let step = 0.5
+        while t < max(step, duration) {
+            let time = CMTime(seconds: t, preferredTimescale: 600)
+            if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+                samples.append(FaceSample(time: t, midX: largestFaceMidX(in: cgImage)))
+            } else {
+                samples.append(FaceSample(time: t, midX: nil))
+            }
+            t += step
+        }
+        return samples
+    }
+
+    private static func largestFaceMidX(in cgImage: CGImage) -> CGFloat? {
+        let request = VNDetectFaceRectanglesRequest()
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        guard (try? handler.perform([request])) != nil,
+              let faces = request.results, !faces.isEmpty else { return nil }
+        let biggest = faces.max { a, b in
+            (a.boundingBox.width * a.boundingBox.height) < (b.boundingBox.width * b.boundingBox.height)
+        }
+        return biggest?.boundingBox.midX
+    }
+
+    private static func fullVideoPanPath(
+        from samples: [FaceSample],
+        orientedSize: CGSize,
+        renderSize: CGSize
+    ) -> [FullVideoPanKeyframe] {
+        let scale = max(renderSize.width / orientedSize.width, renderSize.height / orientedSize.height)
+        let scaledW = orientedSize.width * scale
+        let cropMaxX = max(0, scaledW - renderSize.width)
+        let center = cropMaxX / 2
+
+        var lastTarget = center
+        let targets: [(time: Double, x: CGFloat)] = samples.map { sample in
+            if let midX = sample.midX {
+                lastTarget = min(max(midX * scaledW - renderSize.width / 2, 0), cropMaxX)
+            }
+            return (sample.time, lastTarget)
+        }
+        guard !targets.isEmpty else { return [FullVideoPanKeyframe(time: 0, cropX: center)] }
+
+        let safeZone = renderSize.width * 0.18
+        let maxSpeed = renderSize.width * 0.75
+        var current = targets[0].x
+        var keyframes = [FullVideoPanKeyframe(time: targets[0].time, cropX: current)]
+
+        for index in 1..<targets.count {
+            let dt = targets[index].time - targets[index - 1].time
+            let target = targets[index].x
+            let diff = target - current
+            if abs(diff) > safeZone {
+                let step = min(abs(diff), maxSpeed * dt)
+                current += (diff > 0 ? 1 : -1) * step
+                current = min(max(current, 0), cropMaxX)
+            }
+            keyframes.append(FullVideoPanKeyframe(time: targets[index].time, cropX: current))
+        }
+        return keyframes
+    }
+
+    private static func fullVideoTrackingTransform(
+        cropX: CGFloat,
+        base: CGAffineTransform,
+        orientedSize: CGSize,
+        renderSize: CGSize
+    ) -> CGAffineTransform {
+        let scale = max(renderSize.width / orientedSize.width, renderSize.height / orientedSize.height)
+        let scaledH = orientedSize.height * scale
+        let y = (renderSize.height - scaledH) / 2
+        return base
+            .concatenating(CGAffineTransform(scaleX: scale, y: scale))
+            .concatenating(CGAffineTransform(translationX: -cropX, y: y))
+    }
+
     private static func makeHighlightComposition(
         placements: [ClipPlacement],
         transitions: [Double],
@@ -388,6 +637,42 @@ enum MediaExtractor {
         let totalDuration = placements.last?.timelineEnd ?? HighlightPlan.introDuration
         if let subtitleLayer = makeSubtitleOverlayLayer(
             placements: placements,
+            transcript: transcript,
+            renderSize: renderSize,
+            totalDuration: totalDuration) {
+            parentLayer.addSublayer(subtitleLayer)
+        }
+
+        videoComposition.animationTool = AVVideoCompositionCoreAnimationTool(
+            postProcessingAsVideoLayer: videoLayer, in: parentLayer)
+        return videoComposition
+    }
+
+    private static func makeFullVideoComposition(
+        layerInstruction: AVMutableVideoCompositionLayerInstruction,
+        renderSize: CGSize,
+        transcript: Transcript,
+        totalDuration: Double
+    ) -> AVMutableVideoComposition {
+        let videoComposition = AVMutableVideoComposition()
+        videoComposition.renderSize = renderSize
+        videoComposition.frameDuration = CMTime(value: 1, timescale: 30)
+
+        let instruction = AVMutableVideoCompositionInstruction()
+        instruction.timeRange = CMTimeRange(
+            start: .zero,
+            duration: CMTime(seconds: totalDuration, preferredTimescale: 600))
+        instruction.backgroundColor = NSColor.black.cgColor
+        instruction.layerInstructions = [layerInstruction]
+        videoComposition.instructions = [instruction]
+
+        let parentLayer = CALayer()
+        let videoLayer = CALayer()
+        parentLayer.frame = CGRect(origin: .zero, size: renderSize)
+        videoLayer.frame = parentLayer.frame
+        parentLayer.addSublayer(videoLayer)
+
+        if let subtitleLayer = makeFullSubtitleOverlayLayer(
             transcript: transcript,
             renderSize: renderSize,
             totalDuration: totalDuration) {
@@ -724,6 +1009,63 @@ enum MediaExtractor {
         guard frames.count > 1 else { return nil }
         appendSubtitleFrame(&frames, time: totalDuration, image: blank)
         ShortcastTrace.log("render", "subtitle overlay frames=\(frames.count)")
+
+        let layer = CALayer()
+        layer.frame = CGRect(
+            x: (renderSize.width - overlayWidth) / 2,
+            y: renderSize.height * 0.075,
+            width: overlayWidth,
+            height: overlayHeight)
+        layer.contentsScale = bitmapScale(for: overlaySize)
+        layer.contentsGravity = .resizeAspect
+        layer.contents = blank
+
+        let animation = CAKeyframeAnimation(keyPath: "contents")
+        animation.values = frames.map(\.image)
+        animation.keyTimes = frames.map { NSNumber(value: $0.time / max(totalDuration, 0.1)) }
+        animation.duration = max(totalDuration, 0.1)
+        animation.beginTime = AVCoreAnimationBeginTimeAtZero
+        animation.calculationMode = .discrete
+        animation.isRemovedOnCompletion = false
+        animation.fillMode = .both
+        layer.add(animation, forKey: "subtitleContents")
+        return layer
+    }
+
+    private static func makeFullSubtitleOverlayLayer(
+        transcript: Transcript,
+        renderSize: CGSize,
+        totalDuration: Double
+    ) -> CALayer? {
+        let fontSize = max(24, min(renderSize.width, renderSize.height) * 0.042)
+        let paddingX = fontSize * 0.72
+        let paddingY = fontSize * 0.42
+        let overlayWidth = renderSize.width * 0.88
+        let overlayHeight = fontSize * 3.9
+        let overlaySize = CGSize(width: overlayWidth, height: overlayHeight)
+
+        guard let blank = transparentImage(size: overlaySize) else { return nil }
+        var frames: [(time: Double, image: CGImage)] = [(0, blank)]
+
+        for cue in transcript.segments {
+            let sourceStart = min(max(cue.start, 0), totalDuration)
+            let sourceEnd = min(max(cue.end, sourceStart), totalDuration)
+            guard sourceEnd - sourceStart >= 0.2 else { continue }
+            let text = SubtitleFormatter.displayText(cue.text)
+            guard !text.isEmpty else { continue }
+            let subtitleImage = renderSubtitleImage(
+                text: text,
+                size: overlaySize,
+                fontSize: fontSize,
+                paddingX: paddingX,
+                paddingY: paddingY) ?? blank
+            appendSubtitleFrame(&frames, time: sourceStart, image: subtitleImage)
+            appendSubtitleFrame(&frames, time: sourceEnd, image: blank)
+        }
+
+        guard frames.count > 1 else { return nil }
+        appendSubtitleFrame(&frames, time: totalDuration, image: blank)
+        ShortcastTrace.log("render", "full subtitle overlay frames=\(frames.count)")
 
         let layer = CALayer()
         layer.frame = CGRect(

@@ -135,6 +135,52 @@ struct HighlightVideo: Sendable, Equatable {
     }
 }
 
+struct TranslatedVideo: Sendable, Equatable {
+    var url: URL
+    var renderedTranscript: Transcript
+    var durationSeconds: Double
+    var aspectMode: HighlightAspectMode
+
+    var durationLabel: String {
+        let total = Int(durationSeconds.rounded())
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%d:%02d", m, s)
+    }
+
+    func renderedSRT() -> String? {
+        let entries = renderedTranscript.segments.compactMap { segment -> (start: Double, end: Double, text: String)? in
+            let text = SubtitleFormatter.displayText(segment.text)
+            guard !text.isEmpty, segment.end - segment.start >= 0.2 else { return nil }
+            return (segment.start, segment.end, text)
+        }
+        guard !entries.isEmpty else { return nil }
+
+        return entries.enumerated().map { index, entry in
+            """
+            \(index + 1)
+            \(Self.srtTimestamp(entry.start)) --> \(Self.srtTimestamp(entry.end))
+            \(entry.text)
+            """
+        }
+        .joined(separator: "\n\n")
+        + "\n"
+    }
+
+    private static func srtTimestamp(_ seconds: Double) -> String {
+        let msTotal = Int((max(0, seconds) * 1000).rounded())
+        let hours = msTotal / 3_600_000
+        let minutes = (msTotal % 3_600_000) / 60_000
+        let secs = (msTotal % 60_000) / 1000
+        let millis = msTotal % 1000
+        return String(format: "%02d:%02d:%02d,%03d", hours, minutes, secs, millis)
+    }
+}
+
 enum SubtitleExportKind {
     case source
     case rendered

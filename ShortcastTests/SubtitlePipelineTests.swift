@@ -41,4 +41,24 @@ final class SubtitlePipelineTests: XCTestCase {
         XCTAssertEqual(transcript.segments[0].text, "Hello from the first speaker.")
         XCTAssertTrue(transcript.srtLike().contains("Speaker 2: Reply from the second speaker."))
     }
+
+    func testTranslatedVideoExportsRenderedSubtitleTimelineWithoutIntroOffset() throws {
+        let transcript = Transcript(
+            segments: [
+                TranscriptSegment(start: 1.25, end: 3.5, text: "Xin chào thế giới."),
+                TranscriptSegment(start: 61.0, end: 64.25, text: "Đây là phụ đề đã dịch."),
+            ],
+            language: "vi")
+        let video = TranslatedVideo(
+            url: URL(fileURLWithPath: "/tmp/translated.mp4"),
+            renderedTranscript: transcript,
+            durationSeconds: 70,
+            aspectMode: .original)
+
+        let srt = try XCTUnwrap(video.renderedSRT())
+
+        XCTAssertTrue(srt.contains("00:00:01,250 --> 00:00:03,500"))
+        XCTAssertTrue(srt.contains("00:01:01,000 --> 00:01:04,250"))
+        XCTAssertFalse(srt.contains("00:00:04,250 --> 00:00:06,500"))
+    }
 }

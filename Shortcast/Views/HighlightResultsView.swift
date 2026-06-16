@@ -240,3 +240,197 @@ struct HighlightResultsView: View {
         return "\(base.isEmpty ? "highlight" : String(base.prefix(42)))-\(suffix).srt"
     }
 }
+
+struct TranslatedVideoResultsView: View {
+
+    @Environment(WorkspaceModel.self) private var workspace
+    @State private var player: AVPlayer?
+    @State private var exportError: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            Divider()
+
+            if let translated = workspace.translatedVideo {
+                HStack(alignment: .top, spacing: 22) {
+                    ZStack {
+                        Color.black
+                        if let player {
+                            VideoPlayer(player: player)
+                        }
+                    }
+                    .aspectRatio(translated.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
+                                 contentMode: .fit)
+                    .frame(maxWidth: 620, maxHeight: 620)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                    details(translated)
+                        .frame(width: 330, alignment: .topLeading)
+                }
+                .padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .task {
+                    let p = AVPlayer(url: translated.url)
+                    p.play()
+                    player = p
+                }
+                .onDisappear { player?.pause() }
+            } else {
+                ContentUnavailableView("No translated video", systemImage: "video.slash")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+
+            Divider()
+            footer
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "captions.bubble")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 42, height: 42)
+                .background(.tint, in: RoundedRectangle(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Vietnamese subtitle translation")
+                    .font(.title3.weight(.bold))
+                    .lineLimit(1)
+                if let job = workspace.job {
+                    Text(job.fileName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer()
+
+            Button {
+                workspace.startOver()
+            } label: {
+                Label("Start over", systemImage: "arrow.counterclockwise")
+            }
+            .controlSize(.large)
+        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 14)
+    }
+
+    private func details(_ translated: TranslatedVideo) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                statChip(translated.durationLabel, "clock")
+                statChip("\(translated.renderedTranscript.segments.count) cues", "captions.bubble")
+            }
+            statChip(translated.aspectMode.displayName, "aspectratio")
+
+            Divider()
+
+            Text("Vietnamese subtitles are burned into the full source video. The subtitle download contains only the rendered Vietnamese cues.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func statChip(_ text: String, _ symbol: String) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(.quaternary, in: Capsule())
+    }
+
+    private var footer: some View {
+        HStack {
+            if let exportError {
+                Label(exportError, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            Spacer()
+
+            Button {
+                runSubtitleSavePanel()
+            } label: {
+                Label("Download subtitles", systemImage: "captions.bubble")
+                    .frame(minWidth: 170)
+            }
+            .controlSize(.large)
+            .disabled(workspace.translatedVideo?.renderedSRT() == nil)
+
+            Button {
+                runSavePanel()
+            } label: {
+                Label("Download video", systemImage: "arrow.down.circle.fill")
+                    .frame(minWidth: 180)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(workspace.translatedVideo == nil)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+    }
+
+    private func runSavePanel() {
+        guard let translated = workspace.translatedVideo else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.mpeg4Movie]
+        panel.nameFieldStringValue = suggestedFileName()
+        panel.canCreateDirectories = true
+        panel.title = "Download translated video"
+        panel.begin { response in
+            guard response == .OK, let destination = panel.url else { return }
+            do {
+                try? FileManager.default.removeItem(at: destination)
+                try FileManager.default.copyItem(at: translated.url, to: destination)
+                exportError = nil
+            } catch {
+                exportError = error.localizedDescription
+            }
+        }
+    }
+
+    private func runSubtitleSavePanel() {
+        guard let translated = workspace.translatedVideo,
+              let srt = translated.renderedSRT()
+        else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "srt") ?? .plainText]
+        panel.nameFieldStringValue = suggestedSubtitleFileName()
+        panel.canCreateDirectories = true
+        panel.title = "Download rendered subtitles"
+        panel.begin { response in
+            guard response == .OK, let destination = panel.url else { return }
+            do {
+                try srt.write(to: destination, atomically: true, encoding: .utf8)
+                exportError = nil
+            } catch {
+                exportError = error.localizedDescription
+            }
+        }
+    }
+
+    private func suggestedFileName() -> String {
+        "\(suggestedBaseName())-vi-subtitled.mp4"
+    }
+
+    private func suggestedSubtitleFileName() -> String {
+        "\(suggestedBaseName())-vi-rendered.srt"
+    }
+
+    private func suggestedBaseName() -> String {
+        let source = workspace.job?.fileName ?? "translated-video"
+        let base = source
+            .replacingOccurrences(of: "\\.[^.]+$", with: "", options: .regularExpression)
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return base.isEmpty ? "translated-video" : String(base.prefix(48))
+    }
+}

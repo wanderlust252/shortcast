@@ -15,6 +15,33 @@ struct SubtitleTranslationContext: Sendable, Equatable {
 }
 
 enum SubtitleContextBuilder {
+    static func makeFullVideoContext(
+        transcript: Transcript,
+        targetLanguage: String,
+        sourceLanguage: String?
+    ) -> SubtitleTranslationContext {
+        let text = transcript.segments.map(\.text).joined(separator: " ")
+        let speakers = Array(Set(transcript.segments.compactMap(\.speakerID)))
+            .sorted()
+            .map { "\($0): speaker label supplied by the transcript; relationship, age, and gender are unknown unless stated in the text." }
+        let detectedSourceLanguage = sourceLanguage?.trimmed ?? ""
+
+        return SubtitleTranslationContext(
+            targetLanguage: targetLanguage,
+            sourceLanguage: detectedSourceLanguage.isEmpty ? "auto" : detectedSourceLanguage,
+            contentType: "full educational video",
+            highlightTitle: "",
+            highlightSummary: "",
+            segmentTitle: "",
+            contextBefore: "",
+            contextAfter: "",
+            speakerNotes: speakers,
+            glossary: glossaryCandidates(from: [text]),
+            styleGuide: """
+            Use clear, natural Vietnamese for subtitles. Prefer everyday Vietnamese when it preserves meaning; avoid stiff Sino-Vietnamese or literal calques. Keep technical terms precise and consistent.
+            """)
+    }
+
     static func makeContext(
         transcript: Transcript,
         plan: HighlightPlan,
