@@ -169,6 +169,7 @@ enum MediaExtractor {
         transcript: Transcript,
         aspectMode: HighlightAspectMode,
         showIntroCard: Bool,
+        subtitleHeight: Double,
         exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
@@ -250,7 +251,8 @@ enum MediaExtractor {
             transform: finalTransform,
             plan: plan,
             transcript: transcript,
-            showIntroCard: showIntroCard)
+            showIntroCard: showIntroCard,
+            subtitleHeight: subtitleHeight)
 
         guard let export = makeExportSession(asset: composition, quality: exportQuality)
         else { throw MediaExtractorError.clipExportFailed("export session unavailable") }
@@ -289,6 +291,7 @@ enum MediaExtractor {
         from url: URL,
         transcript: Transcript,
         aspectMode: HighlightAspectMode,
+        subtitleHeight: Double,
         exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
@@ -337,6 +340,7 @@ enum MediaExtractor {
             layerInstruction: layerInstruction,
             renderSize: renderSize,
             transcript: transcript,
+            subtitleHeight: subtitleHeight,
             totalDuration: sourceDuration)
 
         guard let export = makeExportSession(asset: composition, quality: exportQuality)
@@ -718,7 +722,8 @@ enum MediaExtractor {
         transform: CGAffineTransform,
         plan: HighlightPlan,
         transcript: Transcript,
-        showIntroCard: Bool
+        showIntroCard: Bool,
+        subtitleHeight: Double
     ) -> AVMutableVideoComposition {
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = renderSize
@@ -754,6 +759,7 @@ enum MediaExtractor {
             placements: placements,
             transcript: transcript,
             renderSize: renderSize,
+            subtitleHeight: subtitleHeight,
             totalDuration: totalDuration) {
             parentLayer.addSublayer(subtitleLayer)
         }
@@ -767,6 +773,7 @@ enum MediaExtractor {
         layerInstruction: AVMutableVideoCompositionLayerInstruction,
         renderSize: CGSize,
         transcript: Transcript,
+        subtitleHeight: Double,
         totalDuration: Double
     ) -> AVMutableVideoComposition {
         let videoComposition = AVMutableVideoComposition()
@@ -790,6 +797,7 @@ enum MediaExtractor {
         if let subtitleLayer = makeFullSubtitleOverlayLayer(
             transcript: transcript,
             renderSize: renderSize,
+            subtitleHeight: subtitleHeight,
             totalDuration: totalDuration) {
             parentLayer.addSublayer(subtitleLayer)
         }
@@ -1089,6 +1097,7 @@ enum MediaExtractor {
         placements: [ClipPlacement],
         transcript: Transcript,
         renderSize: CGSize,
+        subtitleHeight: Double,
         totalDuration: Double
     ) -> CALayer? {
         let fontSize = max(24, min(renderSize.width, renderSize.height) * 0.042)
@@ -1128,7 +1137,7 @@ enum MediaExtractor {
         let layer = CALayer()
         layer.frame = CGRect(
             x: (renderSize.width - overlayWidth) / 2,
-            y: renderSize.height * 0.075,
+            y: subtitleY(renderSize: renderSize, subtitleHeight: subtitleHeight),
             width: overlayWidth,
             height: overlayHeight)
         layer.contentsScale = bitmapScale(for: overlaySize)
@@ -1150,6 +1159,7 @@ enum MediaExtractor {
     private static func makeFullSubtitleOverlayLayer(
         transcript: Transcript,
         renderSize: CGSize,
+        subtitleHeight: Double,
         totalDuration: Double
     ) -> CALayer? {
         let fontSize = max(24, min(renderSize.width, renderSize.height) * 0.042)
@@ -1185,7 +1195,7 @@ enum MediaExtractor {
         let layer = CALayer()
         layer.frame = CGRect(
             x: (renderSize.width - overlayWidth) / 2,
-            y: renderSize.height * 0.075,
+            y: subtitleY(renderSize: renderSize, subtitleHeight: subtitleHeight),
             width: overlayWidth,
             height: overlayHeight)
         layer.contentsScale = bitmapScale(for: overlaySize)
@@ -1202,6 +1212,10 @@ enum MediaExtractor {
         animation.fillMode = .both
         layer.add(animation, forKey: "subtitleContents")
         return layer
+    }
+
+    private static func subtitleY(renderSize: CGSize, subtitleHeight: Double) -> CGFloat {
+        renderSize.height * CGFloat(AppSettings.clampedSubtitleHeight(subtitleHeight))
     }
 
     private static func appendSubtitleFrame(

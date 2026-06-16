@@ -272,6 +272,7 @@ final class WorkspaceModel {
                 renderedTranscript: renderTranscript,
                 aspectMode: settings.highlightAspectMode,
                 showIntroCard: settings.showHighlightIntroCard,
+                subtitleHeight: settings.subtitleHeight,
                 exportQuality: settings.exportQualityMode)
             phase = .highlightResults
             Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
@@ -379,6 +380,7 @@ final class WorkspaceModel {
                 renderedTranscript: renderedTranscript,
                 durationSeconds: job.durationSeconds,
                 aspectMode: settings.highlightAspectMode,
+                subtitleHeight: settings.subtitleHeight,
                 exportQuality: settings.exportQualityMode)
             phase = .translatedVideoResults
             Self.log("translated video rendered; pipeline done in \(Self.elapsed(since: pipelineStart)) total")
@@ -448,6 +450,7 @@ final class WorkspaceModel {
                     renderedTranscript: review.hasCustomSelection ? review.filteredRenderedTranscript() : review.renderedTranscript,
                     aspectMode: review.aspectMode,
                     showIntroCard: review.hasCustomSelection ? false : review.showIntroCard,
+                    subtitleHeight: settings.subtitleHeight,
                     exportQuality: review.exportQuality)
                 highlightVideo = video
                 highlightVariants = []
@@ -475,6 +478,7 @@ final class WorkspaceModel {
                         renderedTranscript: review.filteredRenderedTranscript(),
                         aspectMode: review.aspectMode,
                         showIntroCard: false,
+                        subtitleHeight: settings.subtitleHeight,
                         exportQuality: review.exportQuality)
                     let outputTranscript = outputTimelineTranscript(
                         for: plan,
@@ -501,6 +505,7 @@ final class WorkspaceModel {
                         renderedTranscript: review.renderedTranscript,
                         durationSeconds: review.sourceDurationSeconds,
                         aspectMode: review.aspectMode,
+                        subtitleHeight: settings.subtitleHeight,
                         exportQuality: review.exportQuality)
                     translatedVideo = video
                     reviewRenderOutputs.insert(
@@ -533,6 +538,7 @@ final class WorkspaceModel {
         renderedTranscript: Transcript,
         aspectMode: HighlightAspectMode,
         showIntroCard: Bool,
+        subtitleHeight: Double,
         exportQuality: ExportQualityMode
     ) async throws -> HighlightVideo {
         let outputURL = try await MediaExtractor.renderHighlight(
@@ -541,6 +547,7 @@ final class WorkspaceModel {
             transcript: renderedTranscript,
             aspectMode: aspectMode,
             showIntroCard: showIntroCard,
+            subtitleHeight: subtitleHeight,
             exportQuality: exportQuality)
         let durationSeconds = showIntroCard
             ? plan.duration
@@ -560,12 +567,14 @@ final class WorkspaceModel {
         renderedTranscript: Transcript,
         durationSeconds: Double,
         aspectMode: HighlightAspectMode,
+        subtitleHeight: Double,
         exportQuality: ExportQualityMode
     ) async throws -> TranslatedVideo {
         let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
             from: sourceURL,
             transcript: renderedTranscript,
             aspectMode: aspectMode,
+            subtitleHeight: subtitleHeight,
             exportQuality: exportQuality)
         return TranslatedVideo(
             url: outputURL,

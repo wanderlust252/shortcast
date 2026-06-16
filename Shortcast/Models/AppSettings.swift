@@ -11,6 +11,9 @@ import Observation
 @Observable
 final class AppSettings {
 
+    nonisolated static let defaultSubtitleHeight: Double = 0.075
+    nonisolated static let subtitleHeightRange: ClosedRange<Double> = 0.03...0.30
+
     /// Legacy clip helper model. The headline long-video highlight flow uses
     /// MiMo for planning; these options remain for the older single-clip and
     /// generated-clip text helpers.
@@ -271,6 +274,11 @@ final class AppSettings {
         didSet { defaults.set(reviewSubtitlesBeforeRender, forKey: Keys.reviewSubtitlesBeforeRender) }
     }
 
+    /// Subtitle band height from the bottom edge, as a fraction of render height.
+    var subtitleHeight: Double {
+        didSet { defaults.set(Self.clampedSubtitleHeight(subtitleHeight), forKey: Keys.subtitleHeight) }
+    }
+
     /// Optional post-render helper that writes platform captions/hashtags for
     /// a completed highlight. Off by default so the main highlight flow stays
     /// focused on the video export.
@@ -334,6 +342,8 @@ final class AppSettings {
         self.highlightSubtitleLanguage = defaults.string(forKey: Keys.highlightSubtitleLanguage)
             .flatMap(HighlightSubtitleLanguage.init) ?? .original
         self.reviewSubtitlesBeforeRender = defaults.object(forKey: Keys.reviewSubtitlesBeforeRender) as? Bool ?? true
+        self.subtitleHeight = Self.clampedSubtitleHeight(
+            defaults.object(forKey: Keys.subtitleHeight) as? Double ?? Self.defaultSubtitleHeight)
         self.suggestHighlightPublishingCopy = defaults.object(forKey: Keys.suggestHighlightPublishingCopy) as? Bool ?? false
         self.exportQualityMode = defaults.string(forKey: Keys.exportQualityMode)
             .flatMap(ExportQualityMode.init) ?? .automatic
@@ -351,6 +361,10 @@ final class AppSettings {
 
     var activePublishingProvider: any PublishingProvider {
         PublishingProviderFactory.make(publishingProvider)
+    }
+
+    nonisolated static func clampedSubtitleHeight(_ value: Double) -> Double {
+        min(max(value, subtitleHeightRange.lowerBound), subtitleHeightRange.upperBound)
     }
 
     private func persistAPIKey() {
@@ -415,6 +429,7 @@ final class AppSettings {
         static let showHighlightIntroCard = "shortcast.highlight.showIntroCard"
         static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
         static let reviewSubtitlesBeforeRender = "shortcast.subtitle.reviewBeforeRender"
+        static let subtitleHeight = "shortcast.subtitle.height"
         static let suggestHighlightPublishingCopy = "shortcast.highlight.suggestPublishingCopy"
         static let exportQualityMode = "shortcast.export.qualityMode"
         static let apiKey      = "shortcast.apiKey"

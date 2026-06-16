@@ -197,6 +197,22 @@ struct SettingsView: View {
                 Text("When on, translated/proofread subtitles pause for manual review and SRT download before the highlight or full translated video is rendered.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Subtitle height")
+                        Spacer()
+                        Text(subtitleHeightLabel(settings.subtitleHeight))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    Slider(
+                        value: $settings.subtitleHeight,
+                        in: AppSettings.subtitleHeightRange,
+                        step: 0.005)
+                }
+                Text("Adjusts how high burned-in subtitles sit above the bottom edge. The default keeps the current placement.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Toggle("Offer caption and hashtag suggestions after rendering", isOn: $settings.suggestHighlightPublishingCopy)
                 Text("When on, the highlight result screen shows an optional publishing-copy panel. It only calls MiMo when you press Generate.")
                     .font(.caption)
@@ -388,5 +404,9 @@ struct SettingsView: View {
         settings.mimoAPIKey.trimmed.hasPrefix("tp-")
             ? "https://token-plan-sgp.xiaomimimo.com/v1"
             : "https://api.xiaomimimo.com/v1"
+    }
+
+    private func subtitleHeightLabel(_ value: Double) -> String {
+        String(format: "%.1f%%", AppSettings.clampedSubtitleHeight(value) * 100)
     }
 }
