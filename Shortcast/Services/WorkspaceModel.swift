@@ -53,7 +53,13 @@ final class WorkspaceModel {
 
     /// The selected mode. Drives routing in `process(url:)`. Defaults to making
     /// a highlight from a long video — the app's headline flow.
-    var inputMode: InputMode = .shorts
+    var inputMode: InputMode = .shorts {
+        didSet {
+            if inputMode == .caption {
+                externalAudioURL = nil
+            }
+        }
+    }
 
     enum Phase: Equatable {
         case empty
@@ -74,6 +80,15 @@ final class WorkspaceModel {
 
     private(set) var phase: Phase = .empty
     private(set) var job: VideoJob?
+    private(set) var externalAudioURL: URL?
+
+    var canUseExternalAudio: Bool {
+        inputMode == .shorts || inputMode == .translateFullVideo
+    }
+
+    var externalAudioFileName: String? {
+        externalAudioURL?.lastPathComponent
+    }
 
     /// The three proposed posts (single-video flow). Bound by the result cards.
     var variants: [PostVariant] = []
@@ -144,9 +159,35 @@ final class WorkspaceModel {
         case .caption:
             await processSingleVideo(job: newJob, modelManager: modelManager, settings: settings)
         case .shorts:
-            startShortsPipeline(job: newJob, modelManager: modelManager, settings: settings)
+            startShortsPipeline(
+                job: newJob,
+                audioURL: externalAudioURL,
+                modelManager: modelManager,
+                settings: settings)
         case .translateFullVideo:
-            startTranslationPipeline(job: newJob, settings: settings)
+            startTranslationPipeline(
+                job: newJob,
+                audioURL: externalAudioURL,
+                settings: settings)
+        }
+    }
+
+    func attachExternalAudio(url: URL) async {
+        guard canUseExternalAudio else { return }
+        errorMessage = nil
+        do {
+            try await MediaExtractor.validateAudioFile(url)
+            externalAudioURL = url
+        } catch {
+            externalAudioURL = nil
+            errorMessage = "Couldn't use that audio file. \(error.localizedDescription)"
+        }
+    }
+
+    func removeExternalAudio() {
+        externalAudioURL = nil
+        if errorMessage?.localizedCaseInsensitiveContains("audio") == true {
+            errorMessage = nil
         }
     }
 
@@ -182,7 +223,12 @@ final class WorkspaceModel {
 
     // MARK: - Shorts flow
 
-    private func startShortsPipeline(job newJob: VideoJob, modelManager: ModelManager, settings: AppSettings) {
+    private func startShortsPipeline(
+        job newJob: VideoJob,
+        audioURL: URL?,
+        modelManager: ModelManager,
+        settings: AppSettings
+    ) {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
         cleanupTranslatedTempFile()
@@ -201,11 +247,20 @@ final class WorkspaceModel {
         phase = .transcribing
 
         pipelineTask = Task {
-            await self.runShortsPipeline(job: newJob, modelManager: modelManager, settings: settings)
+            await self.runShortsPipeline(
+                job: newJob,
+                audioURL: audioURL,
+                modelManager: modelManager,
+                settings: settings)
         }
     }
 
-    private func runShortsPipeline(job: VideoJob, modelManager: ModelManager, settings: AppSettings) async {
+    private func runShortsPipeline(
+        job: VideoJob,
+        audioURL: URL?,
+        modelManager: ModelManager,
+        settings: AppSettings
+    ) async {
         let pipelineStart = Date()
         Self.log("pipeline start — copywriter=\(settings.copywriterModel.rawValue)")
         do {
@@ -218,6 +273,7 @@ final class WorkspaceModel {
                 baseURL: settings.mimoBaseURL)
             let transcript = try await transcription.transcript(
                 for: job.url,
+                audioOverrideURL: audioURL,
                 languageHint: settings.languageOverride,
                 backend: settings.transcriptionBackend,
                 mimo: mimo)
@@ -307,7 +363,7 @@ final class WorkspaceModel {
 
     // MARK: - Full-video translation flow
 
-    private func startTranslationPipeline(job newJob: VideoJob, settings: AppSettings) {
+    private func startTranslationPipeline(job newJob: VideoJob, audioURL: URL?, settings: AppSettings) {
         cleanupClipTempFiles()
         cleanupHighlightTempFile()
         cleanupTranslatedTempFile()
@@ -326,11 +382,11 @@ final class WorkspaceModel {
         phase = .transcribing
 
         pipelineTask = Task {
-            await self.runTranslationPipeline(job: newJob, settings: settings)
+            await self.runTranslationPipeline(job: newJob, audioURL: audioURL, settings: settings)
         }
     }
 
-    private func runTranslationPipeline(job: VideoJob, settings: AppSettings) async {
+    private func runTranslationPipeline(job: VideoJob, audioURL: URL?, settings: AppSettings) async {
         let pipelineStart = Date()
         Self.log("translation pipeline start")
         do {
@@ -341,6 +397,7 @@ final class WorkspaceModel {
                 baseURL: settings.mimoBaseURL)
             let transcript = try await transcription.transcript(
                 for: job.url,
+                audioOverrideURL: audioURL,
                 languageHint: settings.languageOverride,
                 backend: settings.transcriptionBackend,
                 mimo: mimo)
@@ -813,6 +870,7 @@ final class WorkspaceModel {
         cleanupTranslatedTempFile()
         cleanupReviewOutputTempFiles()
         job = nil
+        externalAudioURL = nil
         variants = []
         clips = []
         highlightVideo = nil

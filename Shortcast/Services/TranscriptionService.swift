@@ -107,6 +107,7 @@ final class TranscriptionService {
     /// "es", "Spanish") forces Whisper's decode language; empty = auto-detect.
     func transcript(
         for videoURL: URL,
+        audioOverrideURL: URL? = nil,
         languageHint: String = "",
         backend: AppSettings.TranscriptionBackend = .whisper,
         mimo: MimoService? = nil
@@ -118,9 +119,16 @@ final class TranscriptionService {
         }
         if backend == .mimoASR {
             guard let mimo else { throw MimoError.notConfigured }
-            return try await transcribeWithMimo(videoURL, languageHint: languageHint, mimo: mimo)
+            return try await transcribeWithMimo(
+                videoURL,
+                audioOverrideURL: audioOverrideURL,
+                languageHint: languageHint,
+                mimo: mimo)
         }
-        return try await transcribeOnDevice(videoURL, languageHint: languageHint)
+        return try await transcribeOnDevice(
+            videoURL,
+            audioOverrideURL: audioOverrideURL,
+            languageHint: languageHint)
     }
 
     /// True when a usable transcript exists without needing Whisper.
@@ -130,12 +138,30 @@ final class TranscriptionService {
 
     // MARK: - WhisperKit path
 
-    private func transcribeOnDevice(_ videoURL: URL, languageHint: String = "") async throws -> Transcript {
-        // Full audio (no cap) → temp .m4a.
-        guard let audioURL = try await MediaExtractor.extractAudio(from: videoURL, maxSeconds: nil) else {
-            throw TranscriptionError.noAudio
+    private func transcribeOnDevice(
+        _ videoURL: URL,
+        audioOverrideURL: URL? = nil,
+        languageHint: String = ""
+    ) async throws -> Transcript {
+        let audioURL: URL
+        let shouldRemoveAudio: Bool
+        if let audioOverrideURL {
+            audioURL = audioOverrideURL
+            shouldRemoveAudio = false
+            Self.log("using external audio: \(audioOverrideURL.lastPathComponent)")
+        } else {
+            // Full audio (no cap) → temp .m4a.
+            guard let extractedURL = try await MediaExtractor.extractAudio(from: videoURL, maxSeconds: nil) else {
+                throw TranscriptionError.noAudio
+            }
+            audioURL = extractedURL
+            shouldRemoveAudio = true
         }
-        defer { try? FileManager.default.removeItem(at: audioURL) }
+        defer {
+            if shouldRemoveAudio {
+                try? FileManager.default.removeItem(at: audioURL)
+            }
+        }
 
         if whisper == nil {
             phase = .downloadingModel(fraction: 0)
@@ -192,13 +218,32 @@ final class TranscriptionService {
         return Transcript(segments: segments, language: results.first?.language)
     }
 
-    private func transcribeWithMimo(_ videoURL: URL, languageHint: String, mimo: MimoService) async throws -> Transcript {
+    private func transcribeWithMimo(
+        _ videoURL: URL,
+        audioOverrideURL: URL? = nil,
+        languageHint: String,
+        mimo: MimoService
+    ) async throws -> Transcript {
         phase = .transcribing
         let t0 = Date()
-        guard let audioURL = try await MediaExtractor.extractAudio(from: videoURL, maxSeconds: nil) else {
-            throw TranscriptionError.noAudio
+        let audioURL: URL
+        let shouldRemoveAudio: Bool
+        if let audioOverrideURL {
+            audioURL = audioOverrideURL
+            shouldRemoveAudio = false
+            Self.log("using external audio for mimo-asr: \(audioOverrideURL.lastPathComponent)")
+        } else {
+            guard let extractedURL = try await MediaExtractor.extractAudio(from: videoURL, maxSeconds: nil) else {
+                throw TranscriptionError.noAudio
+            }
+            audioURL = extractedURL
+            shouldRemoveAudio = true
         }
-        defer { try? FileManager.default.removeItem(at: audioURL) }
+        defer {
+            if shouldRemoveAudio {
+                try? FileManager.default.removeItem(at: audioURL)
+            }
+        }
 
         let chunks = try Self.makeMimoWAVChunks(from: audioURL, chunkSeconds: 60)
         defer {

@@ -61,6 +61,7 @@ enum ShortcastTrace {
 
 enum MediaExtractorError: LocalizedError {
     case noVideoTrack
+    case noAudioTrack
     case audioExportFailed(String)
     case clipExportFailed(String)
 
@@ -68,6 +69,8 @@ enum MediaExtractorError: LocalizedError {
         switch self {
         case .noVideoTrack:
             return "That file doesn't contain a video track."
+        case .noAudioTrack:
+            return "That file doesn't contain an audio track."
         case .audioExportFailed(let detail):
             return "Couldn't extract the audio track: \(detail)"
         case .clipExportFailed(let detail):
@@ -90,6 +93,13 @@ enum MediaExtractor {
         guard !videoTracks.isEmpty else { throw MediaExtractorError.noVideoTrack }
         let duration = try await asset.load(.duration)
         return VideoJob(url: url, durationSeconds: CMTimeGetSeconds(duration))
+    }
+
+    /// Verifies a sidecar audio file can be read by AVFoundation before ASR starts.
+    static func validateAudioFile(_ url: URL) async throws {
+        let asset = AVURLAsset(url: url)
+        let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+        guard !audioTracks.isEmpty else { throw MediaExtractorError.noAudioTrack }
     }
 
     /// Extracts the audio track to a temporary `.m4a`. `maxSeconds` caps the

@@ -19,7 +19,11 @@ struct ContentView: View {
             guard !workspace.isBusy,
                   let url = urls.first(where: { $0.isFileURL })
             else { return false }
-            startProcessing(url)
+            if workspace.canUseExternalAudio, Self.looksLikeAudioFile(url) {
+                chooseExternalAudio(url)
+            } else {
+                startProcessing(url)
+            }
             return true
         } isTargeted: { isDropTargeted = $0 }
         .toolbar {
@@ -35,7 +39,10 @@ struct ContentView: View {
     private var workspaceContent: some View {
         switch workspace.phase {
         case .empty:
-            DropZoneView(isDropTargeted: isDropTargeted, onChooseFile: startProcessing)
+            DropZoneView(
+                isDropTargeted: isDropTargeted,
+                onChooseFile: startProcessing,
+                onChooseAudio: chooseExternalAudio)
         case .processing:
             ProcessingView()
         case .results:
@@ -57,5 +64,19 @@ struct ContentView: View {
         Task {
             await workspace.process(url: url, modelManager: modelManager, settings: settings)
         }
+    }
+
+    private func chooseExternalAudio(_ url: URL) {
+        Task {
+            await workspace.attachExternalAudio(url: url)
+        }
+    }
+
+    private static func looksLikeAudioFile(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        return [
+            "aac", "aif", "aiff", "caf", "flac", "m4a", "m4b",
+            "mp3", "mp4a", "oga", "ogg", "wav", "wave", "wma",
+        ].contains(ext)
     }
 }
