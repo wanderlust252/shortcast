@@ -7,6 +7,10 @@ struct ShortcastApp: App {
     @State private var modelManager = ModelManager()
     @State private var workspace = WorkspaceModel()
 
+    init() {
+        RenderNotificationCenter.requestAuthorization()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

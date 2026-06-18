@@ -197,9 +197,17 @@ struct SettingsView: View {
                 Text("When on, translated/proofread subtitles pause for manual review and SRT download before the highlight or full translated video is rendered.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Picker("Subtitle style", selection: $settings.subtitleVisualStyle) {
+                    ForEach(AppSettings.SubtitleVisualStyle.allCases) { style in
+                        Text(style.displayName).tag(style)
+                    }
+                }
+                Text(settings.subtitleVisualStyle.detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text("Subtitle height")
+                        Text("Subtitle position")
                         Spacer()
                         Text(subtitleHeightLabel(settings.subtitleHeight))
                             .monospacedDigit()

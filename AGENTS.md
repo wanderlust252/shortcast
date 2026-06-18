@@ -2,20 +2,26 @@
 
 ## Product Direction
 
-Shortcast is currently being reshaped from a social-short captioning app into a
-tool for turning long educational videos into concise, subtitled highlight
-videos and reviewed subtitled cuts.
+Shortcast is now focused on turning K-pop performance videos into one concise,
+subtitled montage. The main flow is performance-first, not lecture-first:
 
-The primary flow is:
+1. Drop a K-pop stage, fancam, dance practice, MV, or live performance.
+2. Transcribe from a sidecar `.srt`/`.vtt`, WhisperKit, or MiMo ASR when text is
+   available.
+3. Run local audio/visual analysis for performance candidates: energy,
+   beat/onset changes, scene changes, and performer face density.
+4. Send the compact candidate list plus nearby transcript/lyrics to MiMo to plan
+   one coherent 60-180 second montage.
+5. Cut and join selected ranges with AVFoundation.
+6. Burn styled subtitles into the rendered video.
+7. Show one downloadable montage with title, summary, segment list, subtitles,
+   and optional post-render publishing copy.
 
-1. Drop a lecture, podcast, interview, or long recording.
-2. Transcribe it from a sidecar `.srt`/`.vtt`, WhisperKit, or MiMo ASR.
-3. Use MiMo to plan one coherent 5-15 minute educational highlight.
-4. Cut and join selected ranges with AVFoundation.
-5. Burn readable subtitles into the rendered video.
-6. Show one downloadable highlight with title, summary, and segment list.
+Manual subtitle review for the montage must review only cues inside the selected
+montage ranges. Do not make users review an entire source-video transcript for a
+K-pop highlight.
 
-The full-video subtitle flow is also important:
+The full-video subtitle flow is still important:
 
 1. Drop a long video.
 2. Transcribe and translate/rewrite subtitles for review.
@@ -25,21 +31,19 @@ The full-video subtitle flow is also important:
 5. Keep the review screen open so the user can render more cuts from the same
    source video.
 
-Avoid reintroducing "viral", "scroll-stopping", TikTok/Reels/Shorts, hashtags,
-or platform-caption framing into prompts or primary UI copy unless explicitly
-working on the legacy publishing flow or the optional post-render publishing
-copy helper. The user explicitly wants caption and hashtag suggestions available
-after rendering highlights and full-video/selected-clip outputs, behind a
-toggle so it does not clutter the main workflow.
+Avoid inventing member names, group names, song titles, rankings, fandom claims,
+or official affiliation unless they appear in provided metadata, transcript,
+filename, or user-supplied text. Keep social publishing copy optional behind a
+toggle; it should not clutter the main workflow.
 
 ## Important Runtime Behavior
 
-Gemma is now lazy-loaded. Do not load Gemma at app launch.
+Gemma is lazy-loaded. Do not load Gemma at app launch.
 
 - `ShortcastApp.swift` should not call `modelManager.prepareIfNeeded()` on
   startup.
 - `ContentView` should not gate the drop zone behind `modelManager.isReady`.
-- The highlight flow should run through MiMo/Whisper/AVFoundation without
+- The montage flow should run through MiMo/Whisper/AVFoundation without
   requiring local Gemma weights in RAM.
 - Gemma should be prepared only when the user chooses the legacy short-summary
   helper or another feature that truly needs `GemmaService`.
@@ -50,45 +54,48 @@ closes or explicit unload logic is added.
 ## Key Files
 
 - `Shortcast/Services/WorkspaceModel.swift`
-  Owns the main state machine. The default mode is long-video highlight creation.
-  The legacy single-clip path calls Gemma lazily.
+  Owns the main state machine. The default mode is K-pop montage creation. It
+  wires transcription, `KpopSignalAnalyzer`, MiMo planning, review, rendering,
+  and completion notifications.
+
+- `Shortcast/Services/KpopSignalAnalyzer.swift`
+  Builds local candidate windows from audio energy/onsets, sampled visual scene
+  changes, performer face density, and nearby transcript snippets.
 
 - `Shortcast/Services/MimoService.swift`
   Owns MiMo chat completions, ASR, subtitle translation, and
-  `planHighlight(...)`. The highlight system prompt lives here. It also owns
-  post-render publishing-copy generation for rendered highlights and translated
-  video outputs.
+  `planHighlight(...)`. The K-pop montage system prompt lives here. It also owns
+  post-render publishing-copy generation.
 
 - `Shortcast/Services/MediaExtractor.swift`
-  Owns media inspection, cutting, highlight rendering, subtitles, and overlay
-  composition via AVFoundation.
+  Owns media inspection, cutting, montage rendering, styled subtitles, and
+  overlay composition via AVFoundation.
 
 - `Shortcast/Services/TranscriptionService.swift`
-  Owns sidecar transcript loading and transcription backend routing.
-
-- `Shortcast/Services/PromptBuilder.swift`
-  Legacy Gemma prompt builder. It now supports the explicit legacy publishing
-  helper path for captions and hashtags. Do not remove that behavior when
-  keeping the main educational highlight flow grounded.
-
-- `Shortcast/Resources/social-content-coach.md`
-  Despite the old filename, this is primarily an educational content editor
-  brief. It also documents the explicit legacy publishing helper exception.
-
-- `Shortcast/Services/MomentFinderService.swift`
-  Legacy transcript clip helper. The current headline highlight planner does
-  not use this path.
+  Owns sidecar transcript loading, transcription backend routing, and helpers
+  for clipping transcripts to selected montage ranges.
 
 - `Shortcast/Models/AppSettings.swift`
   User settings, including MiMo API config, transcription backend, subtitle
-  language, highlight aspect ratio, optional post-render publishing-copy
-  suggestions, and legacy clip summarizer model.
+  language, subtitle visual style, subtitle placement, aspect ratio, optional
+  publishing-copy suggestions, and legacy clip summarizer model.
 
 - `Shortcast/Views/SubtitleReviewView.swift`
-  Review UI for translated/highlight subtitles. This is where users select
-  which cues to include, deselect/select all cues, repeatedly render selected
-  joined clips from the same source, download outputs, and optionally generate
-  captions/hashtags for rendered full-video or selected-clip outputs.
+  Review UI for translated/montage subtitles. The preview should resemble the
+  rendered output: subtitle style, subtitle position, and selected cue text
+  should appear over the video.
+
+- `Shortcast/Services/PromptBuilder.swift`
+  Legacy Gemma prompt builder. It supports the explicit legacy publishing helper
+  path for captions and hashtags. Do not remove that behavior when keeping the
+  main K-pop montage flow grounded.
+
+- `Shortcast/Resources/social-content-coach.md`
+  Despite the generic filename, this is now the K-pop performance editor brief.
+
+- `Shortcast/Services/MomentFinderService.swift`
+  Legacy transcript clip helper. The current headline montage planner does not
+  use this path.
 
 ## Legacy Areas
 
@@ -106,11 +113,6 @@ real older features, not the current main direction:
 Before deleting them, check references from `WorkspaceModel`, result views, and
 publishing providers. Prefer hiding or isolating legacy UI before large removals.
 
-Post-render publishing copy is no longer purely legacy: highlight and full-video
-result views can show a toggle for "Suggest captions and hashtags". Keep this
-helper optional and scrollable where space is tight, especially inside subtitle
-review.
-
 ## Build Notes
 
 Use XcodeGen project files already present in the repo.
@@ -119,6 +121,12 @@ Common build command:
 
 ```bash
 xcodebuild -project Shortcast.xcodeproj -scheme Shortcast -configuration Debug -skipMacroValidation build
+```
+
+Unit-test command:
+
+```bash
+xcodebuild test -project Shortcast.xcodeproj -scheme Shortcast -skipMacroValidation -destination 'platform=macOS'
 ```
 
 Without `-skipMacroValidation`, Xcode may fail before compiling the app with:
@@ -133,13 +141,13 @@ source changes.
 ## Editing Guidance
 
 - Preserve lazy Gemma loading.
-- Keep prompts grounded, educational, and subtitle-aware.
-- Keep the default highlight output focused on one coherent educational video.
-  The subtitle review flow is allowed to render multiple selected cuts from the
-  same source video because the user explicitly requested that workflow.
-- Keep caption/hashtag UI optional behind a toggle. It should not block review,
-  rendering, or downloading. Hashtag fields must be visible and scrollable when
-  long platform suggestions are generated.
-- Do not invent new broad abstractions while legacy and highlight paths still
-  coexist. Keep changes scoped and explicit.
+- Keep prompts grounded, K-pop performance-aware, and subtitle-aware.
+- Keep the default output focused on one coherent montage.
+- Manual montage subtitle review should show only selected montage cues.
+- Styled subtitle choices should affect both preview and final render.
+- Completion notifications should fire only after a render output is actually
+  available.
+- Keep caption/hashtag UI optional behind a toggle.
+- Do not invent broad abstractions while legacy and montage paths still coexist.
+  Keep changes scoped and explicit.
 - When renaming legacy concepts, do it in small passes and build after each pass.

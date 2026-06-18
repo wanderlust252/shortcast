@@ -119,6 +119,37 @@ final class AppSettings {
         }
     }
 
+    enum SubtitleVisualStyle: String, CaseIterable, Identifiable, Codable, Sendable {
+        case cleanBand
+        case popGlow
+        case karaokeCard
+        case minimalShadow
+
+        var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .cleanBand: "Clean band"
+            case .popGlow: "Pop glow"
+            case .karaokeCard: "Karaoke card"
+            case .minimalShadow: "Minimal shadow"
+            }
+        }
+
+        var detail: String {
+            switch self {
+            case .cleanBand:
+                "Readable black lower-third band for busy footage."
+            case .popGlow:
+                "Bright white text with pink glow and strong outline."
+            case .karaokeCard:
+                "Rounded semi-transparent card with accent border."
+            case .minimalShadow:
+                "No box, just bold text with stroke and shadow."
+            }
+        }
+    }
+
     enum TranscriptionBackend: String, CaseIterable, Identifiable, Codable, Sendable {
         case whisper
         case mimoASR
@@ -279,6 +310,11 @@ final class AppSettings {
         didSet { defaults.set(Self.clampedSubtitleHeight(subtitleHeight), forKey: Keys.subtitleHeight) }
     }
 
+    /// Visual style used for burned-in subtitles and subtitle review preview.
+    var subtitleVisualStyle: SubtitleVisualStyle {
+        didSet { defaults.set(subtitleVisualStyle.rawValue, forKey: Keys.subtitleVisualStyle) }
+    }
+
     /// Optional post-render helper that writes platform captions/hashtags for
     /// a completed highlight. Off by default so the main highlight flow stays
     /// focused on the video export.
@@ -344,6 +380,8 @@ final class AppSettings {
         self.reviewSubtitlesBeforeRender = defaults.object(forKey: Keys.reviewSubtitlesBeforeRender) as? Bool ?? true
         self.subtitleHeight = Self.clampedSubtitleHeight(
             defaults.object(forKey: Keys.subtitleHeight) as? Double ?? Self.defaultSubtitleHeight)
+        self.subtitleVisualStyle = defaults.string(forKey: Keys.subtitleVisualStyle)
+            .flatMap(SubtitleVisualStyle.init) ?? .popGlow
         self.suggestHighlightPublishingCopy = defaults.object(forKey: Keys.suggestHighlightPublishingCopy) as? Bool ?? false
         self.exportQualityMode = defaults.string(forKey: Keys.exportQualityMode)
             .flatMap(ExportQualityMode.init) ?? .automatic
@@ -430,6 +468,7 @@ final class AppSettings {
         static let highlightSubtitleLanguage = "shortcast.highlight.subtitleLanguage"
         static let reviewSubtitlesBeforeRender = "shortcast.subtitle.reviewBeforeRender"
         static let subtitleHeight = "shortcast.subtitle.height"
+        static let subtitleVisualStyle = "shortcast.subtitle.visualStyle"
         static let suggestHighlightPublishingCopy = "shortcast.highlight.suggestPublishingCopy"
         static let exportQualityMode = "shortcast.export.qualityMode"
         static let apiKey      = "shortcast.apiKey"

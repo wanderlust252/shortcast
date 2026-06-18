@@ -201,7 +201,51 @@ struct SubtitleReviewView: View {
                 }
                 .aspectRatio(review.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
                              contentMode: .fit)
+                .overlay {
+                    GeometryReader { proxy in
+                        if let cue = selectedCue(in: review) {
+                            VStack {
+                                Spacer()
+                                SubtitlePreviewOverlay(
+                                    text: SubtitleFormatter.displayText(cue.text),
+                                    style: settings.subtitleVisualStyle)
+                                    .padding(.horizontal, proxy.size.width * 0.06)
+                                    .padding(.bottom, max(10, proxy.size.height * CGFloat(AppSettings.clampedSubtitleHeight(settings.subtitleHeight))))
+                            }
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                        }
+                    }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Picker("Subtitle style", selection: Binding(
+                        get: { settings.subtitleVisualStyle },
+                        set: { settings.subtitleVisualStyle = $0 })
+                    ) {
+                        ForEach(AppSettings.SubtitleVisualStyle.allCases) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack {
+                            Text("Subtitle position")
+                            Spacer()
+                            Text(subtitleHeightLabel(settings.subtitleHeight))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(
+                            value: Binding(
+                                get: { settings.subtitleHeight },
+                                set: { settings.subtitleHeight = $0 }),
+                            in: AppSettings.subtitleHeightRange,
+                            step: 0.005)
+                    }
+                }
+                .font(.caption)
 
                 if let cue = selectedCue(in: review) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -532,6 +576,10 @@ struct SubtitleReviewView: View {
         return "\((base.isEmpty ? "subtitles" : String(base.prefix(42))))-\(suffix).srt"
     }
 
+    private func subtitleHeightLabel(_ value: Double) -> String {
+        "\(Int((AppSettings.clampedSubtitleHeight(value) * 100).rounded()))%"
+    }
+
     private func timeRangeLabel(_ segment: TranscriptSegment) -> String {
         "\(timeLabel(segment.start)) - \(timeLabel(segment.end))"
     }
@@ -545,6 +593,105 @@ struct SubtitleReviewView: View {
             return String(format: "%d:%02d:%02d", h, m, s)
         }
         return String(format: "%d:%02d", m, s)
+    }
+}
+
+private struct SubtitlePreviewOverlay: View {
+    let text: String
+    let style: AppSettings.SubtitleVisualStyle
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: fontSize, weight: fontWeight))
+            .foregroundStyle(.white)
+            .multilineTextAlignment(.center)
+            .lineLimit(2)
+            .minimumScaleFactor(0.72)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .frame(maxWidth: .infinity)
+            .background(background)
+            .overlay(border)
+            .shadow(color: shadowColor, radius: shadowRadius, x: 0, y: 1)
+    }
+
+    private var fontSize: CGFloat {
+        switch style {
+        case .cleanBand:
+            return 19
+        case .popGlow:
+            return 22
+        case .karaokeCard:
+            return 20
+        case .minimalShadow:
+            return 21
+        }
+    }
+
+    private var fontWeight: Font.Weight {
+        style == .minimalShadow ? .heavy : .bold
+    }
+
+    private var horizontalPadding: CGFloat {
+        style == .minimalShadow ? 4 : 14
+    }
+
+    private var verticalPadding: CGFloat {
+        style == .minimalShadow ? 2 : 9
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        switch style {
+        case .cleanBand:
+            RoundedRectangle(cornerRadius: 8)
+                .fill(.black.opacity(0.54))
+        case .popGlow:
+            Capsule()
+                .fill(.pink.opacity(0.2))
+        case .karaokeCard:
+            RoundedRectangle(cornerRadius: 10)
+                .fill(.black.opacity(0.5))
+        case .minimalShadow:
+            Color.clear
+        }
+    }
+
+    @ViewBuilder
+    private var border: some View {
+        switch style {
+        case .karaokeCard:
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(.pink.opacity(0.76), lineWidth: 1.5)
+        default:
+            EmptyView()
+        }
+    }
+
+    private var shadowColor: Color {
+        switch style {
+        case .cleanBand:
+            return .black.opacity(0.35)
+        case .popGlow:
+            return .pink.opacity(0.8)
+        case .karaokeCard:
+            return .black.opacity(0.5)
+        case .minimalShadow:
+            return .black.opacity(0.9)
+        }
+    }
+
+    private var shadowRadius: CGFloat {
+        switch style {
+        case .cleanBand:
+            return 2
+        case .popGlow:
+            return 8
+        case .karaokeCard:
+            return 4
+        case .minimalShadow:
+            return 6
+        }
     }
 }
 

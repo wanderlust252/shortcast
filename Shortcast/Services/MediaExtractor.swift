@@ -180,6 +180,7 @@ enum MediaExtractor {
         aspectMode: HighlightAspectMode,
         showIntroCard: Bool,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
@@ -262,7 +263,8 @@ enum MediaExtractor {
             plan: plan,
             transcript: transcript,
             showIntroCard: showIntroCard,
-            subtitleHeight: subtitleHeight)
+            subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle)
 
         guard let export = makeExportSession(asset: composition, quality: exportQuality)
         else { throw MediaExtractorError.clipExportFailed("export session unavailable") }
@@ -302,6 +304,7 @@ enum MediaExtractor {
         transcript: Transcript,
         aspectMode: HighlightAspectMode,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         exportQuality: ExportQualityMode
     ) async throws -> URL {
         let asset = AVURLAsset(url: url)
@@ -351,6 +354,7 @@ enum MediaExtractor {
             renderSize: renderSize,
             transcript: transcript,
             subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle,
             totalDuration: sourceDuration)
 
         guard let export = makeExportSession(asset: composition, quality: exportQuality)
@@ -733,7 +737,8 @@ enum MediaExtractor {
         plan: HighlightPlan,
         transcript: Transcript,
         showIntroCard: Bool,
-        subtitleHeight: Double
+        subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle
     ) -> AVMutableVideoComposition {
         let videoComposition = AVMutableVideoComposition()
         videoComposition.renderSize = renderSize
@@ -770,6 +775,7 @@ enum MediaExtractor {
             transcript: transcript,
             renderSize: renderSize,
             subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle,
             totalDuration: totalDuration) {
             parentLayer.addSublayer(subtitleLayer)
         }
@@ -784,6 +790,7 @@ enum MediaExtractor {
         renderSize: CGSize,
         transcript: Transcript,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         totalDuration: Double
     ) -> AVMutableVideoComposition {
         let videoComposition = AVMutableVideoComposition()
@@ -808,6 +815,7 @@ enum MediaExtractor {
             transcript: transcript,
             renderSize: renderSize,
             subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle,
             totalDuration: totalDuration) {
             parentLayer.addSublayer(subtitleLayer)
         }
@@ -1108,13 +1116,14 @@ enum MediaExtractor {
         transcript: Transcript,
         renderSize: CGSize,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         totalDuration: Double
     ) -> CALayer? {
-        let fontSize = max(24, min(renderSize.width, renderSize.height) * 0.042)
+        let fontSize = subtitleFontSize(renderSize: renderSize, style: subtitleStyle)
         let paddingX = fontSize * 0.72
         let paddingY = fontSize * 0.42
-        let overlayWidth = renderSize.width * 0.88
-        let overlayHeight = fontSize * 3.9
+        let overlayWidth = subtitleOverlayWidth(renderSize: renderSize, style: subtitleStyle)
+        let overlayHeight = subtitleOverlayHeight(fontSize: fontSize, style: subtitleStyle)
         let overlaySize = CGSize(width: overlayWidth, height: overlayHeight)
 
         guard let blank = transparentImage(size: overlaySize) else { return nil }
@@ -1134,7 +1143,8 @@ enum MediaExtractor {
                     size: overlaySize,
                     fontSize: fontSize,
                     paddingX: paddingX,
-                    paddingY: paddingY) ?? blank
+                    paddingY: paddingY,
+                    style: subtitleStyle) ?? blank
                 appendSubtitleFrame(&frames, time: timelineStart, image: subtitleImage)
                 appendSubtitleFrame(&frames, time: timelineEnd, image: blank)
             }
@@ -1170,13 +1180,14 @@ enum MediaExtractor {
         transcript: Transcript,
         renderSize: CGSize,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         totalDuration: Double
     ) -> CALayer? {
-        let fontSize = max(24, min(renderSize.width, renderSize.height) * 0.042)
+        let fontSize = subtitleFontSize(renderSize: renderSize, style: subtitleStyle)
         let paddingX = fontSize * 0.72
         let paddingY = fontSize * 0.42
-        let overlayWidth = renderSize.width * 0.88
-        let overlayHeight = fontSize * 3.9
+        let overlayWidth = subtitleOverlayWidth(renderSize: renderSize, style: subtitleStyle)
+        let overlayHeight = subtitleOverlayHeight(fontSize: fontSize, style: subtitleStyle)
         let overlaySize = CGSize(width: overlayWidth, height: overlayHeight)
 
         guard let blank = transparentImage(size: overlaySize) else { return nil }
@@ -1193,7 +1204,8 @@ enum MediaExtractor {
                 size: overlaySize,
                 fontSize: fontSize,
                 paddingX: paddingX,
-                paddingY: paddingY) ?? blank
+                paddingY: paddingY,
+                style: subtitleStyle) ?? blank
             appendSubtitleFrame(&frames, time: sourceStart, image: subtitleImage)
             appendSubtitleFrame(&frames, time: sourceEnd, image: blank)
         }
@@ -1228,6 +1240,51 @@ enum MediaExtractor {
         renderSize.height * CGFloat(AppSettings.clampedSubtitleHeight(subtitleHeight))
     }
 
+    private static func subtitleFontSize(
+        renderSize: CGSize,
+        style: AppSettings.SubtitleVisualStyle
+    ) -> CGFloat {
+        let base = min(renderSize.width, renderSize.height)
+        switch style {
+        case .cleanBand:
+            return max(24, base * 0.042)
+        case .popGlow:
+            return max(26, base * 0.047)
+        case .karaokeCard:
+            return max(24, base * 0.044)
+        case .minimalShadow:
+            return max(25, base * 0.045)
+        }
+    }
+
+    private static func subtitleOverlayWidth(
+        renderSize: CGSize,
+        style: AppSettings.SubtitleVisualStyle
+    ) -> CGFloat {
+        switch style {
+        case .cleanBand, .karaokeCard:
+            return renderSize.width * 0.88
+        case .popGlow, .minimalShadow:
+            return renderSize.width * 0.92
+        }
+    }
+
+    private static func subtitleOverlayHeight(
+        fontSize: CGFloat,
+        style: AppSettings.SubtitleVisualStyle
+    ) -> CGFloat {
+        switch style {
+        case .cleanBand:
+            return fontSize * 3.9
+        case .popGlow:
+            return fontSize * 4.2
+        case .karaokeCard:
+            return fontSize * 4.0
+        case .minimalShadow:
+            return fontSize * 3.4
+        }
+    }
+
     private static func appendSubtitleFrame(
         _ frames: inout [(time: Double, image: CGImage)],
         time: Double,
@@ -1248,7 +1305,8 @@ enum MediaExtractor {
         size: CGSize,
         fontSize: CGFloat,
         paddingX: CGFloat,
-        paddingY: CGFloat
+        paddingY: CGFloat,
+        style: AppSettings.SubtitleVisualStyle
     ) -> CGImage? {
         let scale = bitmapScale(for: size)
         let pxW = max(1, Int(size.width * scale))
@@ -1262,13 +1320,13 @@ enum MediaExtractor {
         NSGraphicsContext.current = nsCtx
         ctx.scaleBy(x: scale, y: scale)
 
-        let font = NSFont.systemFont(ofSize: fontSize, weight: .bold)
+        let font = NSFont.systemFont(ofSize: fontSize, weight: style == .minimalShadow ? .heavy : .bold)
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         paragraph.lineBreakMode = .byWordWrapping
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.35)
-        shadow.shadowBlurRadius = 3
+        shadow.shadowColor = subtitleShadowColor(style)
+        shadow.shadowBlurRadius = subtitleShadowBlur(style)
         shadow.shadowOffset = CGSize(width: 0, height: -1)
         let attributed = NSAttributedString(
             string: text,
@@ -1277,6 +1335,8 @@ enum MediaExtractor {
                 .foregroundColor: NSColor.white,
                 .paragraphStyle: paragraph,
                 .shadow: shadow,
+                .strokeColor: subtitleStrokeColor(style),
+                .strokeWidth: subtitleStrokeWidth(style),
             ])
         let textRect = CGRect(
             x: paddingX,
@@ -1289,8 +1349,7 @@ enum MediaExtractor {
         let bandHeight = min(size.height, ceil(bounds.height) + paddingY * 2)
         let bandY = max(0, (size.height - bandHeight) / 2)
         let bandRect = CGRect(x: 0, y: bandY, width: size.width, height: bandHeight)
-        NSColor.black.withAlphaComponent(0.48).setFill()
-        NSBezierPath(roundedRect: bandRect, xRadius: min(14, bandHeight * 0.22), yRadius: min(14, bandHeight * 0.22)).fill()
+        drawSubtitleBackground(style: style, bandRect: bandRect, bandHeight: bandHeight, size: size)
 
         let drawRect = CGRect(
             x: paddingX,
@@ -1300,6 +1359,94 @@ enum MediaExtractor {
         attributed.draw(with: drawRect, options: [.usesLineFragmentOrigin, .usesFontLeading])
         NSGraphicsContext.restoreGraphicsState()
         return ctx.makeImage()
+    }
+
+    private static func drawSubtitleBackground(
+        style: AppSettings.SubtitleVisualStyle,
+        bandRect: CGRect,
+        bandHeight: CGFloat,
+        size: CGSize
+    ) {
+        switch style {
+        case .cleanBand:
+            NSColor.black.withAlphaComponent(0.54).setFill()
+            NSBezierPath(
+                roundedRect: bandRect,
+                xRadius: min(14, bandHeight * 0.22),
+                yRadius: min(14, bandHeight * 0.22)).fill()
+        case .popGlow:
+            let glowRect = bandRect.insetBy(dx: size.width * 0.04, dy: -2)
+            NSColor.systemPink.withAlphaComponent(0.18).setFill()
+            NSBezierPath(
+                roundedRect: glowRect,
+                xRadius: bandHeight * 0.45,
+                yRadius: bandHeight * 0.45).fill()
+        case .karaokeCard:
+            let cardRect = bandRect.insetBy(dx: size.width * 0.02, dy: -1)
+            let path = NSBezierPath(
+                roundedRect: cardRect,
+                xRadius: min(18, bandHeight * 0.24),
+                yRadius: min(18, bandHeight * 0.24))
+            NSColor.black.withAlphaComponent(0.48).setFill()
+            path.fill()
+            NSColor.systemPink.withAlphaComponent(0.76).setStroke()
+            path.lineWidth = 2.5
+            path.stroke()
+        case .minimalShadow:
+            break
+        }
+    }
+
+    private static func subtitleStrokeColor(_ style: AppSettings.SubtitleVisualStyle) -> NSColor {
+        switch style {
+        case .cleanBand:
+            return .clear
+        case .popGlow:
+            return NSColor.black.withAlphaComponent(0.86)
+        case .karaokeCard:
+            return NSColor.black.withAlphaComponent(0.58)
+        case .minimalShadow:
+            return NSColor.black.withAlphaComponent(0.78)
+        }
+    }
+
+    private static func subtitleStrokeWidth(_ style: AppSettings.SubtitleVisualStyle) -> NSNumber {
+        switch style {
+        case .cleanBand:
+            return 0
+        case .popGlow:
+            return -5
+        case .karaokeCard:
+            return -3
+        case .minimalShadow:
+            return -4
+        }
+    }
+
+    private static func subtitleShadowColor(_ style: AppSettings.SubtitleVisualStyle) -> NSColor {
+        switch style {
+        case .cleanBand:
+            return NSColor.black.withAlphaComponent(0.35)
+        case .popGlow:
+            return NSColor.systemPink.withAlphaComponent(0.72)
+        case .karaokeCard:
+            return NSColor.black.withAlphaComponent(0.45)
+        case .minimalShadow:
+            return NSColor.black.withAlphaComponent(0.72)
+        }
+    }
+
+    private static func subtitleShadowBlur(_ style: AppSettings.SubtitleVisualStyle) -> CGFloat {
+        switch style {
+        case .cleanBand:
+            return 3
+        case .popGlow:
+            return 9
+        case .karaokeCard:
+            return 4
+        case .minimalShadow:
+            return 6
+        }
     }
 
     private static func transparentImage(size: CGSize) -> CGImage? {

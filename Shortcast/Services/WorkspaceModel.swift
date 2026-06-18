@@ -337,8 +337,13 @@ final class WorkspaceModel {
                 aspectMode: settings.highlightAspectMode,
                 showIntroCard: settings.showHighlightIntroCard,
                 subtitleHeight: settings.subtitleHeight,
+                subtitleStyle: settings.subtitleVisualStyle,
                 exportQuality: settings.exportQualityMode)
             phase = .highlightResults
+            RenderNotificationCenter.notifyRenderFinished(
+                title: "K-pop montage ready",
+                body: "Shortcast finished rendering \(job.fileName).",
+                url: highlightVideo?.url)
             Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
             cleanupClipTempFiles()
@@ -446,8 +451,13 @@ final class WorkspaceModel {
                 durationSeconds: job.durationSeconds,
                 aspectMode: settings.highlightAspectMode,
                 subtitleHeight: settings.subtitleHeight,
+                subtitleStyle: settings.subtitleVisualStyle,
                 exportQuality: settings.exportQualityMode)
             phase = .translatedVideoResults
+            RenderNotificationCenter.notifyRenderFinished(
+                title: "Subtitled video ready",
+                body: "Shortcast finished rendering \(job.fileName).",
+                url: translatedVideo?.url)
             Self.log("translated video rendered; pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
             cleanupClipTempFiles()
@@ -516,6 +526,7 @@ final class WorkspaceModel {
                     aspectMode: review.aspectMode,
                     showIntroCard: review.hasCustomSelection ? false : review.showIntroCard,
                     subtitleHeight: settings.subtitleHeight,
+                    subtitleStyle: settings.subtitleVisualStyle,
                     exportQuality: review.exportQuality)
                 highlightVideo = video
                 highlightVariants = []
@@ -531,6 +542,10 @@ final class WorkspaceModel {
                             ? outputTimelineTranscript(for: plan, transcript: review.filteredRenderedTranscript(), showIntroCard: false)
                             : outputTimelineTranscript(for: plan, transcript: review.renderedTranscript, showIntroCard: review.showIntroCard)),
                     at: 0)
+                RenderNotificationCenter.notifyRenderFinished(
+                    title: "K-pop montage ready",
+                    body: "Shortcast finished rendering \(review.sourceFileName).",
+                    url: video.url)
                 phase = .reviewingSubtitles
             case .fullVideo:
                 if review.hasCustomSelection {
@@ -544,6 +559,7 @@ final class WorkspaceModel {
                         aspectMode: review.aspectMode,
                         showIntroCard: false,
                         subtitleHeight: settings.subtitleHeight,
+                        subtitleStyle: settings.subtitleVisualStyle,
                         exportQuality: review.exportQuality)
                     let outputTranscript = outputTimelineTranscript(
                         for: plan,
@@ -563,6 +579,10 @@ final class WorkspaceModel {
                             aspectMode: video.aspectMode,
                             renderedTranscript: outputTranscript),
                         at: 0)
+                    RenderNotificationCenter.notifyRenderFinished(
+                        title: "Selected subtitle cut ready",
+                        body: "Shortcast finished rendering \(review.sourceFileName).",
+                        url: video.url)
                 } else {
                     phase = .renderingTranslatedVideo
                     let video = try await renderTranslatedVideo(
@@ -571,6 +591,7 @@ final class WorkspaceModel {
                         durationSeconds: review.sourceDurationSeconds,
                         aspectMode: review.aspectMode,
                         subtitleHeight: settings.subtitleHeight,
+                        subtitleStyle: settings.subtitleVisualStyle,
                         exportQuality: review.exportQuality)
                     translatedVideo = video
                     reviewRenderOutputs.insert(
@@ -582,6 +603,10 @@ final class WorkspaceModel {
                             aspectMode: video.aspectMode,
                             renderedTranscript: video.renderedTranscript),
                         at: 0)
+                    RenderNotificationCenter.notifyRenderFinished(
+                        title: "Subtitled video ready",
+                        body: "Shortcast finished rendering \(review.sourceFileName).",
+                        url: video.url)
                 }
                 translatedVariants = []
                 highlightCopyError = nil
@@ -604,6 +629,7 @@ final class WorkspaceModel {
         aspectMode: HighlightAspectMode,
         showIntroCard: Bool,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         exportQuality: ExportQualityMode
     ) async throws -> HighlightVideo {
         let outputURL = try await MediaExtractor.renderHighlight(
@@ -613,6 +639,7 @@ final class WorkspaceModel {
             aspectMode: aspectMode,
             showIntroCard: showIntroCard,
             subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle,
             exportQuality: exportQuality)
         let durationSeconds = showIntroCard
             ? plan.duration
@@ -633,6 +660,7 @@ final class WorkspaceModel {
         durationSeconds: Double,
         aspectMode: HighlightAspectMode,
         subtitleHeight: Double,
+        subtitleStyle: AppSettings.SubtitleVisualStyle,
         exportQuality: ExportQualityMode
     ) async throws -> TranslatedVideo {
         let outputURL = try await MediaExtractor.renderSubtitledFullVideo(
@@ -640,6 +668,7 @@ final class WorkspaceModel {
             transcript: renderedTranscript,
             aspectMode: aspectMode,
             subtitleHeight: subtitleHeight,
+            subtitleStyle: subtitleStyle,
             exportQuality: exportQuality)
         return TranslatedVideo(
             url: outputURL,
