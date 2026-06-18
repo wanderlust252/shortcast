@@ -55,18 +55,25 @@ struct MimoService: Sendable {
     func planHighlight(
         transcript: String,
         language: String?,
-        sourceDuration: Double
+        sourceDuration: Double,
+        kpopAnalysis: KpopAnalysisReport? = nil
     ) async throws -> HighlightPlan {
+        let analysisContext = kpopAnalysis?.promptContext
+            ?? "No local audio/visual analysis was available. Use the transcript only as a fallback and avoid guessing visual performance details."
         let raw = try await complete(
             system: Self.highlightSystemPrompt(language: language),
             user: """
             Source duration: \(Int(sourceDuration.rounded())) seconds
 
+            Local K-pop performance candidates from the app's audio/visual analyzer:
+
+            \(analysisContext)
+
             Timestamped transcript:
 
             \(transcript)
 
-            Return the highlight plan JSON.
+            Return the K-pop montage plan JSON.
             """,
             maxTokens: 8192,
             temperature: 0.35,
@@ -560,58 +567,66 @@ struct MimoService: Sendable {
             : "Write title, summary, segment titles, and why fields in this language: \(lang)."
 
         return """
-        You are an expert educational video editor and subtitle-aware summary \
-        writer. You receive a timestamped transcript from a long lecture, \
-        podcast, presentation, or interview. Your job is to create an edit \
-        decision list for ONE coherent highlight video, not a set of shorts.
+        You are an expert K-pop performance editor and subtitle-aware montage \
+        planner. You receive local audio/visual candidate windows plus a \
+        timestamped transcript or lyrics when available. Your job is to create \
+        an edit decision list for ONE coherent performance montage, not a set \
+        of separate shorts.
 
         Goal:
-        - Make a 5 to 15 minute highlight video.
-        - Preserve the strongest knowledge path: opening context, core concepts, \
-        concrete examples, key warnings, and takeaways.
-        - Favor sections whose spoken text can carry readable subtitles without \
-        requiring missing visual context.
-        - Remove slow delivery, repetition, filler, greetings, sponsorships, \
-        long pauses, and rambling.
-        - Keep each selected segment as a complete idea. Never cut mid-sentence.
-        - Order segments by the best learning flow, usually chronological unless \
-        moving a later segment earlier makes the mini-lesson clearer.
+        - Make a 60 to 180 second K-pop performance montage.
+        - Prioritize chorus, dance break, killing part, center/formation change, \
+        strong camera movement, close-up impact, crowd/fanchant energy, and clean \
+        musical cut points.
+        - Treat the local candidate list as the main source of performance \
+        evidence. Use the transcript only for nearby lyrics/context.
+        - Do not identify performers by name unless the name appears in the \
+        transcript, filename, or user-provided text.
+        - Remove long intros, outros, silence, dead air, static talk sections, \
+        and low-energy setup.
+        - Keep each selected segment musically coherent. Prefer starting just \
+        before a beat, chorus entry, formation change, or visual payoff.
+        - Order segments chronologically unless a later segment clearly makes a \
+        stronger opening hook for the montage.
         - \(languageRule)
 
         Return ONLY valid JSON, with no markdown, no prose, using this shape:
         {
-          "title": "short title for the highlight",
-          "summary": "1-2 sentence summary of what the highlight teaches",
+          "title": "short title for the montage",
+          "summary": "1-2 sentence summary of the performance arc",
           "segments": [
             {
               "start": "MM:SS or HH:MM:SS",
               "end": "MM:SS or HH:MM:SS",
-              "title": "short subtitle-friendly title for this idea",
-              "why": "why this segment belongs in the highlight"
+              "title": "short subtitle-friendly label for this performance moment",
+              "why": "why this segment belongs in the montage"
             }
           ]
         }
 
         Segment rules:
-        - Prefer 6 to 14 segments.
-        - Individual segments should usually be 20 to 180 seconds.
-        - Total selected duration should be 300 to 900 seconds.
-        - Titles should be calm, literal, and readable as on-screen labels.
-        - Do not invent content outside the transcript.
+        - Prefer 5 to 10 segments.
+        - Individual segments should usually be 8 to 35 seconds.
+        - Total selected duration should be 60 to 180 seconds.
+        - Prefer windows from the local candidate list. You may adjust start/end \
+        by a few seconds for cleaner musical cuts.
+        - Titles should be short performance labels, not clickbait.
+        - Do not invent visual details, member names, song titles, or claims not \
+        supported by the candidate signals or transcript.
         """
     }
 }
 
 enum HighlightPlanJSONParser {
     static let minSegmentDuration = 8.0
-    static let maxSegmentDuration = 240.0
-    static let maxTotalDuration = 15 * 60.0
+    static let maxSegmentDuration = 35.0
+    static let maxTotalDuration = 180.0
 
     static func parse(_ raw: String, sourceDuration: Double) -> HighlightPlan {
         guard let jsonString = JSONVariantParser.extractJSONObject(from: raw),
               let root = JSONVariantParser.deserializeTolerant(jsonString) as? [String: Any]
         else {
-            return HighlightPlan(title: "Highlight", summary: "", segments: [])
+            return HighlightPlan(title: "Montage", summary: "", segments: [])
         }
 
         let title = string(root, "title", "headline").trimmed
@@ -651,7 +666,7 @@ enum HighlightPlanJSONParser {
         }
 
         return HighlightPlan(
-            title: title.isEmpty ? "Highlight" : title,
+            title: title.isEmpty ? "Montage" : title,
             summary: summary,
             segments: segments)
     }

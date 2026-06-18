@@ -2,6 +2,90 @@ import XCTest
 @testable import Shortcast
 
 final class SubtitlePipelineTests: XCTestCase {
+    func testTranscriptClippedToHighlightPlanKeepsOnlySelectedRanges() {
+        let transcript = Transcript(
+            segments: [
+                TranscriptSegment(start: 0, end: 4, text: "Intro"),
+                TranscriptSegment(start: 8, end: 14, text: "Chorus starts"),
+                TranscriptSegment(start: 20, end: 24, text: "Outside"),
+                TranscriptSegment(start: 30, end: 38, text: "Dance break"),
+            ],
+            language: "en")
+        let selected = [
+            HighlightSegment(start: 10, end: 15, title: "Chorus", why: ""),
+            HighlightSegment(start: 32, end: 36, title: "Dance", why: ""),
+        ]
+
+        let clipped = transcript.clipped(to: selected)
+
+        XCTAssertEqual(clipped.segments.count, 2)
+        XCTAssertEqual(clipped.segments[0].start, 10)
+        XCTAssertEqual(clipped.segments[0].end, 14)
+        XCTAssertEqual(clipped.segments[0].text, "Chorus starts")
+        XCTAssertEqual(clipped.segments[1].start, 32)
+        XCTAssertEqual(clipped.segments[1].end, 36)
+        XCTAssertEqual(clipped.segments[1].text, "Dance break")
+    }
+
+    func testKpopSignalAnalyzerBuildsRankedPerformanceCandidates() {
+        let transcript = Transcript(
+            segments: [
+                TranscriptSegment(start: 20, end: 30, text: "Chorus hook line"),
+                TranscriptSegment(start: 44, end: 54, text: "Dance break"),
+            ],
+            language: "en")
+        let audio = stride(from: 0.0, through: 80.0, by: 2.0).map { time in
+            let peak = (24.0...34.0).contains(time) || (44.0...54.0).contains(time)
+            return KpopSignalAnalyzer.AudioSample(
+                time: time,
+                energy: peak ? 1.0 : 0.15,
+                onset: peak ? 0.55 : 0.05)
+        }
+        let visual = stride(from: 0.0, through: 80.0, by: 2.0).map { time in
+            let active = (22.0...34.0).contains(time) || (46.0...56.0).contains(time)
+            return KpopSignalAnalyzer.VisualSample(
+                time: time,
+                sceneChange: active ? 0.8 : 0.1,
+                faceCount: active ? 4 : 0,
+                brightness: 0.5)
+        }
+
+        let candidates = KpopSignalAnalyzer.buildCandidates(
+            audioSamples: audio,
+            visualSamples: visual,
+            transcript: transcript,
+            duration: 80)
+
+        XCTAssertFalse(candidates.isEmpty)
+        XCTAssertTrue(candidates.contains { $0.start < 30 && $0.end > 24 })
+        XCTAssertTrue(candidates.contains { $0.transcriptSnippet.contains("Chorus") || $0.transcriptSnippet.contains("Dance") })
+        XCTAssertTrue(candidates.allSatisfy { $0.duration >= 8 && $0.duration <= 35 })
+    }
+
+    func testKpopHighlightParserCapsSegmentAndTotalDuration() {
+        let raw = """
+        {
+          "title": "Performance peaks",
+          "summary": "Chorus and dance-break montage.",
+          "segments": [
+            {"start":"00:10","end":"01:20","title":"Long chorus","why":"High energy"},
+            {"start":"01:30","end":"02:20","title":"Dance break","why":"Formation shift"},
+            {"start":"02:30","end":"03:20","title":"Final hook","why":"Camera impact"},
+            {"start":"03:30","end":"04:20","title":"Encore","why":"Crowd energy"},
+            {"start":"04:30","end":"05:20","title":"Outro","why":"More energy"},
+            {"start":"05:30","end":"06:20","title":"Too much","why":"Should not fit"}
+          ]
+        }
+        """
+
+        let plan = HighlightPlanJSONParser.parse(raw, sourceDuration: 400)
+
+        XCTAssertEqual(plan.title, "Performance peaks")
+        XCTAssertTrue(plan.segments.allSatisfy { $0.duration <= 35 })
+        XCTAssertLessThanOrEqual(plan.duration, 180)
+        XCTAssertFalse(plan.segments.contains { $0.title == "Too much" })
+    }
+
     func testFormatterKeepsShortVietnameseSubtitleWithinTwoReadableLines() {
         let text = "Đây là cách mô hình giữ ngữ cảnh mà không làm phụ đề quá dài."
 

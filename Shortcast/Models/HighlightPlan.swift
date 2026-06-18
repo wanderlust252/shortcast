@@ -478,7 +478,7 @@ enum ExportQualityMode: String, CaseIterable, Identifiable, Codable, Sendable {
         case .automatic:
             "Chooses a sensible bitrate from the output size and source bitrate."
         case .smallerFile:
-            "Keeps exports compact; best for lectures, slides, and sharing."
+            "Keeps exports compact; best for quick review and sharing."
         case .balanced:
             "Uses a moderate bitrate for cleaner motion and readable subtitles."
         case .highestQuality:

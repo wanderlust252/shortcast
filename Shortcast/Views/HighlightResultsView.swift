@@ -58,7 +58,7 @@ struct HighlightResultsView: View {
                 }
                 .onDisappear { player?.pause() }
             } else {
-                ContentUnavailableView("No highlight video", systemImage: "video.slash")
+                ContentUnavailableView("No montage video", systemImage: "video.slash")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
@@ -76,7 +76,7 @@ struct HighlightResultsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Publishing copy")
                         .font(.subheadline.weight(.semibold))
-                    Text("Editable captions and hashtags for the rendered highlight.")
+                    Text("Editable captions and hashtags for the rendered montage.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -132,7 +132,7 @@ struct HighlightResultsView: View {
                 .background(.tint, in: RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(workspace.highlightVideo?.plan.title ?? workspace.job?.fileName ?? "Highlight")
+                Text(workspace.highlightVideo?.plan.title ?? workspace.job?.fileName ?? "Montage")
                     .font(.title3.weight(.bold))
                     .lineLimit(1)
                 if let job = workspace.job {
@@ -242,7 +242,7 @@ struct HighlightResultsView: View {
             Button {
                 runSavePanel()
             } label: {
-                Label("Download highlight", systemImage: "arrow.down.circle.fill")
+                Label("Download montage", systemImage: "arrow.down.circle.fill")
                     .frame(minWidth: 180)
             }
             .buttonStyle(.borderedProminent)

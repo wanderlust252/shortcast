@@ -143,7 +143,7 @@ struct SettingsView: View {
                 }
             }
 
-            Section("How a long video becomes a highlight") {
+            Section("How a performance video becomes a montage") {
                 Picker("Transcription", selection: $settings.transcriptionBackend) {
                     ForEach(AppSettings.TranscriptionBackend.allCases) { backend in
                         Text(backend.displayName).tag(backend)
@@ -160,9 +160,9 @@ struct SettingsView: View {
                     status: settings.transcriptionBackend == .mimoASR && settings.mimoAPIKey.trimmed.isEmpty ? "Needs MiMo key" : nil)
                 pipelineRole(
                     step: "2", icon: "wand.and.stars",
-                    title: "Plan the highlight",
+                    title: "Analyze and plan",
                     model: "MiMo API",
-                    detail: "Reads the timestamped transcript and returns the sections for one coherent 5-15 minute edit.",
+                    detail: "Combines local audio/visual performance signals with nearby transcript text, then returns one 60-180 second montage plan.",
                     status: settings.mimoAPIKey.trimmed.isEmpty ? "Needs API key" : "Remote API")
                 pipelineRole(
                     step: "3", icon: "film",
@@ -178,7 +178,7 @@ struct SettingsView: View {
                         Text(mode.displayName).tag(mode)
                     }
                 }
-                Text("Vertical 9:16 works well for phone viewing. Original ratio preserves slides and wide interview framing.")
+                Text("Vertical 9:16 works well for phone viewing. Original ratio preserves stage framing and wide choreography.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Show intro table of contents", isOn: $settings.showHighlightIntroCard)
@@ -190,7 +190,7 @@ struct SettingsView: View {
                         Text(language.displayName).tag(language)
                     }
                 }
-                Text("Original uses the transcript as-is. Vietnamese translates only the selected highlight subtitle cues with context, then formats them for readable subtitle lines.")
+                Text("Original uses the transcript as-is. Vietnamese translates only the selected montage subtitle cues with context, then formats them for readable subtitle lines.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Review translated subtitles before rendering", isOn: $settings.reviewSubtitlesBeforeRender)
@@ -214,7 +214,7 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Offer caption and hashtag suggestions after rendering", isOn: $settings.suggestHighlightPublishingCopy)
-                Text("When on, the highlight result screen shows an optional publishing-copy panel. It only calls MiMo when you press Generate.")
+                Text("When on, the montage result screen shows an optional publishing-copy panel. It only calls MiMo when you press Generate.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("Output quality", selection: $settings.exportQualityMode) {

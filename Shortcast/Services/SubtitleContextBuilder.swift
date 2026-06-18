@@ -29,7 +29,7 @@ enum SubtitleContextBuilder {
         return SubtitleTranslationContext(
             targetLanguage: targetLanguage,
             sourceLanguage: detectedSourceLanguage.isEmpty ? "auto" : detectedSourceLanguage,
-            contentType: "full educational video",
+            contentType: "full performance video",
             highlightTitle: "",
             highlightSummary: "",
             segmentTitle: "",
@@ -76,7 +76,7 @@ enum SubtitleContextBuilder {
         return SubtitleTranslationContext(
             targetLanguage: targetLanguage,
             sourceLanguage: detectedSourceLanguage.isEmpty ? "auto" : detectedSourceLanguage,
-            contentType: "educational highlight video",
+            contentType: "K-pop performance montage",
             highlightTitle: plan.title.trimmed,
             highlightSummary: plan.summary.trimmed,
             segmentTitle: segment.title.trimmed,

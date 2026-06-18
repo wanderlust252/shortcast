@@ -2,8 +2,8 @@
 
 # Shortcast
 
-**Long videos → concise, subtitled highlight videos.**
-**Transcribed, summarized, cut, subtitled and rendered from your Mac. Open-source.**
+**K-pop performance videos → concise, subtitled montage highlights.**
+**Analyzed, planned, cut, subtitled and rendered from your Mac. Open-source.**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/macOS-15%2B-black?logo=apple)
@@ -14,11 +14,11 @@
 
 <br />
 
-<img src="assets/demo.gif" alt="Shortcast demo — drop a long video, get a summarized subtitled highlight" width="720" />
+<img src="assets/demo.gif" alt="Shortcast demo — drop a performance video, get a subtitled montage" width="720" />
 
 <br />
 
-<sub>Drop a long video → it transcribes, plans one coherent highlight, cuts the useful sections, burns subtitles, and renders a downloadable video.</sub>
+<sub>Drop a performance video → it finds high-energy moments, plans one coherent montage, cuts the selected sections, burns subtitles, and renders a downloadable video.</sub>
 
 </div>
 
@@ -28,12 +28,14 @@
 
 Shortcast has two modes:
 
-### 🎬 Make a highlight video (the main one)
+### 🎬 Make a K-pop montage (the main one)
 
-Drop a lecture, podcast, interview or long recording. Shortcast transcribes it,
-asks MiMo to plan one coherent **5-15 minute educational highlight**, cuts the
-useful sections, adds readable subtitles, and renders a single downloadable video.
-You can keep the original aspect ratio for slides/interviews or render a
+Drop a K-pop stage, fancam, dance practice, MV, or live performance. Shortcast
+transcribes when text is available, analyzes local audio/visual signals for
+chorus, dance break, formation, close-up, and camera-impact moments, asks MiMo
+to plan one coherent **60-180 second performance montage**, cuts the selected
+sections, adds readable subtitles, and renders a single downloadable video. You
+can keep the original aspect ratio for wide choreography or render a
 phone-friendly 9:16 version.
 
 ### ✏️ Summarize a short
@@ -43,34 +45,34 @@ path to write grounded titles and notes from the clip.
 
 What's different about Shortcast:
 
-- 🧠 **Summary-first planning.** The planner preserves the learning path: context,
-  core concepts, examples, warnings, and takeaways.
+- 🎚️ **Signal-first planning.** The planner starts from local audio/visual peaks:
+  energy, beat/onset changes, scene changes, and performer face density.
 - 🔤 **Readable subtitles.** Selected transcript cues are burned into the rendered
   highlight, with optional Vietnamese subtitle translation.
-- 📐 **Two output shapes.** Original ratio preserves slides and wide interviews;
+- 📐 **Two output shapes.** Original ratio preserves stage framing and wide choreography;
   vertical 9:16 works well for phone viewing.
 - 🛰️ **Local media processing.** Cutting, rendering, and local model helpers stay
   on your Mac. MiMo features use your configured API key.
 - 🪶 **No Python. No Electron. No embedded runtime.** Just Swift, MLX, AVFoundation, Vision.
 
-## How a long video becomes a highlight
+## How a performance video becomes a montage
 
 ```
   ┌──────────────────────────────────────────────────────────────────────┐
   │  YOUR MAC                                                            │
   │                                                                       │
-  │  drop a long video                                                    │
+  │  drop a performance video                                             │
   │        │                                                              │
   │        ▼                                                              │
   │  ┌──────────────┐   ┌────────────────────┐   ┌────────────────────┐   │
-  │  │ WhisperKit   │──►│  MiMo planner       │──►│ AVFoundation       │   │
-  │  │ or MiMo ASR  │   │  summary + EDL      │   │ cut + join ranges  │   │
-  │  │ transcribe   │   │  for one highlight  │   │ burn subtitles     │   │
+  │  │ WhisperKit   │──►│  signal analyzer    │──►│ AVFoundation       │   │
+  │  │ or MiMo ASR  │   │  + MiMo EDL         │   │ cut + join ranges  │   │
+  │  │ transcribe   │   │  for one montage    │   │ burn subtitles     │   │
   │  └──────────────┘   └────────────────────┘   └────────────────────┘   │
   │                                                       │                │
   │                                                       ▼                │
   │                                              ┌───────────────────┐     │
-  │                                              │ one highlight:    │     │
+  │                                              │ one montage:      │     │
   │                                              │ title, summary,   │     │
   │                                              │ subtitles, mp4    │     │
   │                                              └───────────────────┘     │
@@ -81,13 +83,16 @@ Concretely:
 
 1. **Transcribe.** If the video has a `.srt`/`.vtt` sidecar, it's used instantly.
    Otherwise WhisperKit or MiMo ASR creates a transcript.
-2. **Plan the highlight.** MiMo reads the timestamped transcript and returns a
-   JSON edit decision list: title, summary, and selected segments.
-3. **Cut and join.** AVFoundation cuts the selected source ranges and joins them
-   into one highlight video.
-4. **Subtitle.** Shortcast burns readable subtitle cues into the rendered output.
-   It can translate selected highlight cues to Vietnamese before rendering.
-5. **Review.** Play the rendered highlight, inspect its title/summary/segments,
+2. **Analyze performance signals.** Shortcast samples local audio energy/onsets,
+   visual scene changes, and performer face density to build candidate windows.
+3. **Plan the montage.** MiMo reads those candidates plus the timestamped
+   transcript and returns a JSON edit decision list: title, summary, and selected
+   segments.
+4. **Cut and join.** AVFoundation cuts the selected source ranges and joins them
+   into one montage video.
+5. **Subtitle.** Shortcast burns readable subtitle cues into the rendered output.
+   It can translate selected montage cues to Vietnamese before rendering.
+6. **Review.** Play the rendered montage, inspect its title/summary/segments,
    and download the `.mp4`.
 
 ### Choosing the model

@@ -58,6 +58,32 @@ struct Transcript: Sendable, Equatable {
             .joined(separator: " ")
     }
 
+    /// Keeps only cues that overlap selected highlight/montage ranges, clipping
+    /// cue boundaries to the selected source ranges while preserving source-time
+    /// coordinates for review and rendering.
+    func clipped(to highlightSegments: [HighlightSegment]) -> Transcript {
+        guard !segments.isEmpty, !highlightSegments.isEmpty else {
+            return Transcript(segments: [], language: language)
+        }
+
+        var output: [TranscriptSegment] = []
+        for highlight in highlightSegments {
+            for cue in segments where cue.end > highlight.start && cue.start < highlight.end {
+                let start = max(cue.start, highlight.start)
+                let end = min(cue.end, highlight.end)
+                guard end - start >= 0.2 else { continue }
+                let text = cue.text.trimmed
+                guard !text.isEmpty else { continue }
+                output.append(TranscriptSegment(
+                    start: start,
+                    end: end,
+                    text: text,
+                    speakerID: cue.speakerID))
+            }
+        }
+        return Transcript(segments: output, language: language)
+    }
+
     private static func mmss(_ seconds: Double) -> String {
         let t = Int(seconds.rounded())
         return String(format: "%d:%02d", t / 60, t % 60)

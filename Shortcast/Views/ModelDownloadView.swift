@@ -16,7 +16,7 @@ struct ModelDownloadView: View {
             Text("Shortcast")
                 .font(.largeTitle.bold())
 
-            Text("Long videos become concise, subtitled highlight videos with grounded summaries and readable section titles.")
+            Text("Performance videos become concise, subtitled K-pop montages with grounded section titles.")
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)

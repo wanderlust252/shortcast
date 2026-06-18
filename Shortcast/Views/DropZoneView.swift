@@ -175,7 +175,7 @@ struct DropZoneView: View {
     private var privacyNote: String {
         switch workspace.inputMode {
         case .shorts:
-            "The video stays on your Mac. For highlights, the timestamped transcript is sent to MiMo to plan the edit."
+            "The video stays on your Mac. Local performance signals and the timestamped transcript are sent to MiMo to plan the montage."
         case .translateFullVideo:
             "The video stays on your Mac. For translation, subtitle text is sent to MiMo in chunks."
         case .caption:

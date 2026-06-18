@@ -3,7 +3,7 @@ import Observation
 
 /// Drives the main window's state machine. Three flows share it:
 ///  - short video → one set of editable legacy summaries.
-///  - long video → transcribe → plan + render one subtitled highlight video.
+///  - long video → transcribe/analyze → plan + render one K-pop montage.
 ///  - long video → transcribe → translate + render full subtitled video.
 @MainActor
 @Observable
@@ -12,7 +12,7 @@ final class WorkspaceModel {
     /// What the user wants to do with a dropped video. Chosen explicitly on the
     /// drop screen rather than guessed from the video's length.
     enum InputMode: String, CaseIterable, Identifiable, Sendable {
-        case shorts    // long video → render one educational highlight video
+        case shorts    // long video → render one K-pop performance montage
         case translateFullVideo // long video → render full video with Vietnamese subtitles
         case caption   // short video → legacy captions and hashtag suggestions
 
@@ -21,7 +21,7 @@ final class WorkspaceModel {
         var title: String {
             switch self {
             case .caption: "Caption a short"
-            case .shorts:  "Make highlight video"
+            case .shorts:  "Make K-pop montage"
             case .translateFullVideo: "Translate full video"
             }
         }
@@ -29,7 +29,7 @@ final class WorkspaceModel {
         var dropTitle: String {
             switch self {
             case .caption: "Drop a short clip here"
-            case .shorts:  "Drop a lecture, podcast or interview here"
+            case .shorts:  "Drop a K-pop performance video here"
             case .translateFullVideo: "Drop a video to translate here"
             }
         }
@@ -37,7 +37,7 @@ final class WorkspaceModel {
         var dropSubtitle: String {
             switch self {
             case .caption: "Up to 60 seconds — suggest captions and hashtags"
-            case .shorts:  "We'll remove the rambling and render one 5-15 minute highlight"
+            case .shorts:  "We'll find the chorus, dance breaks and camera-impact moments"
             case .translateFullVideo: "Render the whole video with Vietnamese subtitles"
             }
         }
@@ -285,18 +285,24 @@ final class WorkspaceModel {
             Self.log("transcript ready in \(Self.elapsed(since: t0)) — whisper=\(transcript.language ?? "?"), text=\(captionLanguage ?? "?"), output=\(outputLanguage ?? "?")")
             try Task.checkCancellation()
 
-            // 2. Plan the knowledge highlight with MiMo.
+            // 2. Score local K-pop performance signals, then plan the montage with MiMo.
             phase = .findingMoments
             let t1 = Date()
+            let kpopAnalysis = await KpopSignalAnalyzer.analyze(
+                videoURL: job.url,
+                transcript: transcript,
+                sourceDuration: job.durationSeconds)
+            Self.log("kpop analysis ready — \(kpopAnalysis.candidates.count) candidate(s)")
             Self.log("director selected — MiMo API (\(settings.mimoModelID.trimmed.isEmpty ? "mimo-v2.5-pro" : settings.mimoModelID.trimmed))")
             let plan = try await mimo.planHighlight(
                 transcript: transcript.srtLike(),
                 language: outputLanguage,
-                sourceDuration: job.durationSeconds)
+                sourceDuration: job.durationSeconds,
+                kpopAnalysis: kpopAnalysis)
             Self.log("highlight plan ready in \(Self.elapsed(since: t1)) — \(plan.segments.count) segment(s), \(Int(plan.duration.rounded()))s")
             try Task.checkCancellation()
 
-            // 3. Render one highlight video from the selected ranges.
+            // 3. Render one montage video from the selected ranges.
             let t2 = Date()
             let renderTranscript = try await transcriptForHighlightSubtitles(
                 transcript,
@@ -304,14 +310,16 @@ final class WorkspaceModel {
                 settings: settings,
                 mimo: mimo)
             if settings.reviewSubtitlesBeforeRender && settings.highlightSubtitleLanguage.targetLanguage != nil {
+                let reviewSourceTranscript = transcript.clipped(to: plan.segments)
+                let reviewRenderedTranscript = renderTranscript.clipped(to: plan.segments)
                 pendingSubtitleReview = PendingSubtitleReview(
                     mode: .highlight,
                     sourceURL: job.url,
                     sourceFileName: job.fileName,
                     sourceDurationSeconds: job.durationSeconds,
                     plan: plan,
-                    sourceTranscript: transcript,
-                    renderedTranscript: renderTranscript,
+                    sourceTranscript: reviewSourceTranscript,
+                    renderedTranscript: reviewRenderedTranscript,
                     aspectMode: settings.highlightAspectMode,
                     showIntroCard: settings.showHighlightIntroCard,
                     exportQuality: settings.exportQualityMode)
@@ -347,7 +355,7 @@ final class WorkspaceModel {
             phase = .empty
         } catch {
             pipelineError = error.localizedDescription
-            errorMessage = "Couldn't make a highlight from that video. \(error.localizedDescription)"
+            errorMessage = "Couldn't make a K-pop montage from that video. \(error.localizedDescription)"
             self.job = nil
             clips = []
             highlightVideo = nil

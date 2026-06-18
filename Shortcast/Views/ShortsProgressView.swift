@@ -55,7 +55,7 @@ struct ShortsProgressView: View {
             default:                return "Transcribing your video…"
             }
         case .findingMoments:
-            return "Planning the highlight…"
+            return "Finding performance peaks…"
         case .translatingSubtitles:
             return "Translating subtitles…"
         case .renderingHighlight:
@@ -76,7 +76,7 @@ struct ShortsProgressView: View {
             default:                       return "Reading the whole timeline."
             }
         case .findingMoments:
-            return "MiMo is reading the transcript and choosing the strongest learning path."
+            return "Local audio/visual scoring is finding chorus, dance break and camera-impact candidates."
         case .translatingSubtitles:
             return "MiMo is translating the subtitle cues into natural Vietnamese."
         case .renderingHighlight:
