@@ -97,8 +97,12 @@ final class WorkspaceModel {
     /// Legacy generated shorts state, still used by the older per-clip helpers.
     var clips: [ShortClip] = []
 
-    /// The rendered long-video highlight.
+    /// The rendered long-video highlight (currently selected for preview).
     var highlightVideo: HighlightVideo?
+    /// All rendered separate highlight clips (one per planned segment).
+    var highlightVideos: [HighlightVideo] = []
+    /// True while re-rendering highlights with updated subtitle settings.
+    private(set) var isReRenderingHighlights = false
 
     /// Optional post-render caption/hashtag suggestions for the rendered highlight.
     var highlightVariants: [PostVariant] = []
@@ -236,6 +240,7 @@ final class WorkspaceModel {
         job = newJob
         clips = []
         highlightVideo = nil
+        highlightVideos = []
         highlightVariants = []
         translatedVariants = []
         highlightCopyError = nil
@@ -302,7 +307,7 @@ final class WorkspaceModel {
             Self.log("highlight plan ready in \(Self.elapsed(since: t1)) — \(plan.segments.count) segment(s), \(Int(plan.duration.rounded()))s")
             try Task.checkCancellation()
 
-            // 3. Render one montage video from the selected ranges.
+            // 3. Render each planned segment as a separate highlight video.
             let t2 = Date()
             let renderTranscript = try await transcriptForHighlightSubtitles(
                 transcript,
@@ -328,28 +333,41 @@ final class WorkspaceModel {
                 return
             }
             phase = .renderingHighlight
-            Self.log("render highlight — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue), quality=\(settings.exportQualityMode.rawValue)")
-            highlightVideo = try await renderHighlightVideo(
-                sourceURL: job.url,
-                plan: plan,
-                sourceTranscript: transcript,
-                renderedTranscript: renderTranscript,
-                aspectMode: settings.highlightAspectMode,
-                showIntroCard: settings.showHighlightIntroCard,
-                subtitleHeight: settings.subtitleHeight,
-                subtitleStyle: settings.subtitleVisualStyle,
-                exportQuality: settings.exportQualityMode)
+            Self.log("render highlights — aspect=\(settings.highlightAspectMode.rawValue), subtitles=\(settings.highlightSubtitleLanguage.rawValue), quality=\(settings.exportQualityMode.rawValue), segments=\(plan.segments.count)")
+            var rendered: [HighlightVideo] = []
+            for (index, segment) in plan.segments.enumerated() {
+                try Task.checkCancellation()
+                let segmentPlan = HighlightPlan(
+                    title: segment.title.isEmpty ? "\(plan.title) \(index + 1)/\(plan.segments.count)" : segment.title,
+                    summary: segment.why,
+                    segments: [segment])
+                let video = try await renderHighlightVideo(
+                    sourceURL: job.url,
+                    plan: segmentPlan,
+                    sourceTranscript: transcript,
+                    renderedTranscript: renderTranscript,
+                    aspectMode: settings.highlightAspectMode,
+                    showIntroCard: false,
+                    subtitleHeight: settings.subtitleHeight,
+                    subtitleStyle: settings.subtitleVisualStyle,
+                    exportQuality: settings.exportQualityMode)
+                rendered.append(video)
+                Self.log("rendered segment \(index + 1)/\(plan.segments.count) — \(Int(segment.duration.rounded()))s")
+            }
+            highlightVideos = rendered
+            highlightVideo = rendered.first
             phase = .highlightResults
             RenderNotificationCenter.notifyRenderFinished(
-                title: "K-pop montage ready",
-                body: "Shortcast finished rendering \(job.fileName).",
-                url: highlightVideo?.url)
-            Self.log("highlight rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
+                title: "K-pop highlights ready",
+                body: "Shortcast finished rendering \(rendered.count) highlight(s) from \(job.fileName).",
+                url: rendered.first?.url)
+            Self.log("highlights rendered in \(Self.elapsed(since: t2)); pipeline done in \(Self.elapsed(since: pipelineStart)) total")
         } catch is CancellationError {
             cleanupClipTempFiles()
             cleanupHighlightTempFile()
             clips = []
             highlightVideo = nil
+            highlightVideos = []
             highlightVariants = []
             translatedVariants = []
             highlightCopyError = nil
@@ -364,6 +382,7 @@ final class WorkspaceModel {
             self.job = nil
             clips = []
             highlightVideo = nil
+            highlightVideos = []
             highlightVariants = []
             translatedVariants = []
             highlightCopyError = nil
@@ -384,6 +403,7 @@ final class WorkspaceModel {
         job = newJob
         clips = []
         highlightVideo = nil
+        highlightVideos = []
         highlightVariants = []
         translatedVariants = []
         highlightCopyError = nil
@@ -518,34 +538,43 @@ final class WorkspaceModel {
                         : review.plan
                 else { throw SubtitleReviewError.missingHighlightPlan }
                 phase = .renderingHighlight
-                let video = try await renderHighlightVideo(
-                    sourceURL: review.sourceURL,
-                    plan: plan,
-                    sourceTranscript: review.hasCustomSelection ? review.filteredSourceTranscript() : review.sourceTranscript,
-                    renderedTranscript: review.hasCustomSelection ? review.filteredRenderedTranscript() : review.renderedTranscript,
-                    aspectMode: review.aspectMode,
-                    showIntroCard: review.hasCustomSelection ? false : review.showIntroCard,
-                    subtitleHeight: settings.subtitleHeight,
-                    subtitleStyle: settings.subtitleVisualStyle,
-                    exportQuality: review.exportQuality)
-                highlightVideo = video
+                let sourceTranscript = review.hasCustomSelection ? review.filteredSourceTranscript() : review.sourceTranscript
+                let renderedTranscript = review.hasCustomSelection ? review.filteredRenderedTranscript() : review.renderedTranscript
+                var rendered: [HighlightVideo] = []
+                for segment in plan.segments {
+                    let segmentPlan = HighlightPlan(
+                        title: segment.title.isEmpty ? plan.title : segment.title,
+                        summary: segment.why,
+                        segments: [segment])
+                    let video = try await renderHighlightVideo(
+                        sourceURL: review.sourceURL,
+                        plan: segmentPlan,
+                        sourceTranscript: sourceTranscript,
+                        renderedTranscript: renderedTranscript,
+                        aspectMode: review.aspectMode,
+                        showIntroCard: false,
+                        subtitleHeight: settings.subtitleHeight,
+                        subtitleStyle: settings.subtitleVisualStyle,
+                        exportQuality: review.exportQuality)
+                    rendered.append(video)
+                    reviewRenderOutputs.insert(
+                        ReviewRenderOutput(
+                            kind: .highlight,
+                            url: video.url,
+                            title: video.plan.title,
+                            durationSeconds: video.durationSeconds,
+                            aspectMode: video.aspectMode,
+                            renderedTranscript: outputTimelineTranscript(for: segmentPlan, transcript: renderedTranscript, showIntroCard: false)),
+                        at: 0)
+                }
+                highlightVideos = rendered
+                highlightVideo = rendered.first
                 highlightVariants = []
                 highlightCopyError = nil
-                reviewRenderOutputs.insert(
-                    ReviewRenderOutput(
-                        kind: .highlight,
-                        url: video.url,
-                        title: video.plan.title,
-                        durationSeconds: video.durationSeconds,
-                        aspectMode: video.aspectMode,
-                        renderedTranscript: review.hasCustomSelection
-                            ? outputTimelineTranscript(for: plan, transcript: review.filteredRenderedTranscript(), showIntroCard: false)
-                            : outputTimelineTranscript(for: plan, transcript: review.renderedTranscript, showIntroCard: review.showIntroCard)),
-                    at: 0)
                 RenderNotificationCenter.notifyRenderFinished(
-                    title: "K-pop montage ready",
-                    body: "Shortcast finished rendering \(review.sourceFileName).",
-                    url: video.url)
+                    title: "K-pop highlights ready",
+                    body: "Shortcast finished rendering \(rendered.count) highlight(s) from \(review.sourceFileName).",
+                    url: rendered.first?.url)
                 phase = .reviewingSubtitles
             case .fullVideo:
                 if review.hasCustomSelection {
@@ -897,6 +926,45 @@ final class WorkspaceModel {
         String(format: "%.1fs", end.timeIntervalSince(start))
     }
 
+    // MARK: - Re-render highlights with updated subtitle settings
+
+    /// Re-renders all separate highlights with the current subtitle style/position.
+    func reRenderHighlights(settings: AppSettings) async {
+        guard !highlightVideos.isEmpty, !isReRenderingHighlights else { return }
+        isReRenderingHighlights = true
+        defer { isReRenderingHighlights = false }
+
+        let selectedIndex = highlightVideos.firstIndex(where: { $0.url == highlightVideo?.url }) ?? 0
+        var newRendered: [HighlightVideo] = []
+        do {
+            for (index, old) in highlightVideos.enumerated() {
+                let video = try await renderHighlightVideo(
+                    sourceURL: old.plan.segments.isEmpty ? old.url : (job?.url ?? old.url),
+                    plan: old.plan,
+                    sourceTranscript: old.sourceTranscript ?? Transcript(segments: [], language: nil),
+                    renderedTranscript: old.renderedTranscript ?? Transcript(segments: [], language: nil),
+                    aspectMode: settings.highlightAspectMode,
+                    showIntroCard: false,
+                    subtitleHeight: settings.subtitleHeight,
+                    subtitleStyle: settings.subtitleVisualStyle,
+                    exportQuality: settings.exportQualityMode)
+                newRendered.append(video)
+                Self.log("re-rendered highlight \(index + 1)/\(highlightVideos.count)")
+            }
+            // Clean up old temp files.
+            for old in highlightVideos {
+                try? FileManager.default.removeItem(at: old.url)
+            }
+            highlightVideos = newRendered
+            let safeIndex = min(selectedIndex, newRendered.count - 1)
+            highlightVideo = newRendered.indices.contains(safeIndex) ? newRendered[safeIndex] : newRendered.first
+            Self.log("re-render complete — \(newRendered.count) highlight(s)")
+        } catch {
+            errorMessage = "Couldn't re-render highlights. \(error.localizedDescription)"
+            Self.log("re-render failed: \(error.localizedDescription)")
+        }
+    }
+
     // MARK: - Reset
 
     /// Returns to the empty drop state and cleans up temp files.
@@ -911,6 +979,7 @@ final class WorkspaceModel {
         variants = []
         clips = []
         highlightVideo = nil
+        highlightVideos = []
         highlightVariants = []
         translatedVariants = []
         highlightCopyError = nil
@@ -936,6 +1005,9 @@ final class WorkspaceModel {
     private func cleanupHighlightTempFile() {
         if let url = highlightVideo?.url {
             try? FileManager.default.removeItem(at: url)
+        }
+        for video in highlightVideos {
+            try? FileManager.default.removeItem(at: video.url)
         }
     }
 

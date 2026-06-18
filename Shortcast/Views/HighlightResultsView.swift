@@ -19,46 +19,56 @@ struct HighlightResultsView: View {
             Divider()
 
             if let highlight = workspace.highlightVideo {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        HStack(alignment: .top, spacing: 22) {
-                            ZStack {
-                                Color.black
-                                if let player {
-                                    VideoPlayer(player: player)
-                                }
-                            }
-                            .aspectRatio(highlight.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
-                                         contentMode: .fit)
-                            .frame(maxWidth: 620, maxHeight: 620)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                            details(highlight)
-                                .frame(width: 330, alignment: .topLeading)
-                        }
-
-                        Toggle(isOn: $settings.suggestHighlightPublishingCopy) {
-                            Label("Suggest captions and hashtags", systemImage: "number")
-                                .font(.headline)
-                        }
-                        .toggleStyle(.switch)
-
-                        if settings.suggestHighlightPublishingCopy {
-                            publishingCopyPanel(highlight)
-                        }
+                HStack(spacing: 0) {
+                    if workspace.highlightVideos.count > 1 {
+                        highlightSidebar
+                        Divider()
                     }
-                    .padding(24)
-                    .frame(maxWidth: .infinity)
+
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 22) {
+                            HStack(alignment: .top, spacing: 22) {
+                                ZStack {
+                                    Color.black
+                                    if let player {
+                                        VideoPlayer(player: player)
+                                    }
+                                }
+                                .aspectRatio(highlight.aspectMode == .vertical ? 9.0 / 16.0 : 16.0 / 9.0,
+                                             contentMode: .fit)
+                                .frame(maxWidth: 620, maxHeight: 620)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                                VStack(alignment: .leading, spacing: 18) {
+                                    details(highlight)
+                                    subtitleStylePanel
+                                }
+                                .frame(width: 330, alignment: .topLeading)
+                            }
+
+                            Toggle(isOn: $settings.suggestHighlightPublishingCopy) {
+                                Label("Suggest captions and hashtags", systemImage: "number")
+                                    .font(.headline)
+                            }
+                            .toggleStyle(.switch)
+
+                            if settings.suggestHighlightPublishingCopy {
+                                publishingCopyPanel(highlight)
+                            }
+                        }
+                        .padding(24)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .task {
+                .task(id: highlight.url) {
                     let p = AVPlayer(url: highlight.url)
                     p.play()
                     player = p
                 }
                 .onDisappear { player?.pause() }
             } else {
-                ContentUnavailableView("No montage video", systemImage: "video.slash")
+                ContentUnavailableView("No highlight video", systemImage: "video.slash")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
@@ -66,6 +76,111 @@ struct HighlightResultsView: View {
             footer
         }
     }
+
+    // MARK: - Sidebar
+
+    private var highlightSidebar: some View {
+        ScrollView {
+            LazyVStack(spacing: 6) {
+                ForEach(Array(workspace.highlightVideos.enumerated()), id: \.offset) { index, video in
+                    let isSelected = video.url == workspace.highlightVideo?.url
+                    Button {
+                        workspace.highlightVideo = video
+                    } label: {
+                        HStack(spacing: 10) {
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.bold).monospacedDigit())
+                                .foregroundStyle(isSelected ? .white : .secondary)
+                                .frame(width: 22)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(video.plan.title)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(isSelected ? .white : .primary)
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.leading)
+                                HStack(spacing: 6) {
+                                    Label(video.durationLabel, systemImage: "clock")
+                                    if let segment = video.plan.segments.first {
+                                        Label(segment.rangeLabel, systemImage: "film")
+                                    }
+                                }
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(isSelected ? .white.opacity(0.75) : .secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(isSelected ? Color.accentColor : Color.clear,
+                                    in: RoundedRectangle(cornerRadius: 8))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(8)
+        }
+        .frame(width: 240)
+    }
+
+    // MARK: - Subtitle style panel
+
+    private var subtitleStylePanel: some View {
+        @Bindable var settings = settings
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Subtitle style")
+                .font(.headline)
+
+            Picker("Style", selection: $settings.subtitleVisualStyle) {
+                ForEach(AppSettings.SubtitleVisualStyle.allCases) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text("Subtitle position")
+                    Spacer()
+                    Text(subtitleHeightLabel(settings.subtitleHeight))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                Slider(
+                    value: $settings.subtitleHeight,
+                    in: AppSettings.subtitleHeightRange,
+                    step: 0.005)
+            }
+            .font(.caption)
+
+            Button {
+                Task {
+                    await workspace.reRenderHighlights(settings: settings)
+                }
+            } label: {
+                if workspace.isReRenderingHighlights {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Re-rendering…")
+                    }
+                    .frame(minWidth: 160)
+                } else {
+                    Label("Re-render with new style", systemImage: "arrow.triangle.2.circlepath")
+                        .frame(minWidth: 160)
+                }
+            }
+            .controlSize(.large)
+            .disabled(workspace.isReRenderingHighlights || workspace.highlightVideos.isEmpty)
+        }
+        .padding(16)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
+    }
+
+    // MARK: - Publishing copy
 
     @ViewBuilder
     private func publishingCopyPanel(_ highlight: HighlightVideo) -> some View {
@@ -76,7 +191,7 @@ struct HighlightResultsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Publishing copy")
                         .font(.subheadline.weight(.semibold))
-                    Text("Editable captions and hashtags for the rendered montage.")
+                    Text("Editable captions and hashtags for the rendered highlight.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -123,6 +238,8 @@ struct HighlightResultsView: View {
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
     }
 
+    // MARK: - Header
+
     private var header: some View {
         HStack(spacing: 14) {
             Image(systemName: "sparkles.tv")
@@ -132,9 +249,15 @@ struct HighlightResultsView: View {
                 .background(.tint, in: RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(workspace.highlightVideo?.plan.title ?? workspace.job?.fileName ?? "Montage")
-                    .font(.title3.weight(.bold))
-                    .lineLimit(1)
+                if workspace.highlightVideos.count > 1 {
+                    Text("\(workspace.highlightVideos.count) highlights")
+                        .font(.title3.weight(.bold))
+                        .lineLimit(1)
+                } else {
+                    Text(workspace.highlightVideo?.plan.title ?? workspace.job?.fileName ?? "Highlight")
+                        .font(.title3.weight(.bold))
+                        .lineLimit(1)
+                }
                 if let job = workspace.job {
                     Text(job.fileName)
                         .font(.caption)
@@ -156,11 +279,13 @@ struct HighlightResultsView: View {
         .padding(.vertical, 14)
     }
 
+    // MARK: - Details
+
     private func details(_ highlight: HighlightVideo) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
                 statChip(highlight.durationLabel, "clock")
-                statChip("\(highlight.plan.segments.count) segments", "list.bullet")
+                statChip("\(highlight.plan.segments.count) segment\(highlight.plan.segments.count == 1 ? "" : "s")", "list.bullet")
             }
             statChip(highlight.aspectMode.displayName, "aspectratio")
 
@@ -214,6 +339,8 @@ struct HighlightResultsView: View {
             .background(.quaternary, in: Capsule())
     }
 
+    // MARK: - Footer
+
     private var footer: some View {
         HStack {
             if let exportError {
@@ -239,10 +366,21 @@ struct HighlightResultsView: View {
             .controlSize(.large)
             .disabled(workspace.highlightVideo == nil)
 
+            if workspace.highlightVideos.count > 1 {
+                Button {
+                    runDownloadAllPanel()
+                } label: {
+                    Label("Download all (\(workspace.highlightVideos.count))", systemImage: "arrow.down.to.line.circle")
+                        .frame(minWidth: 170)
+                }
+                .controlSize(.large)
+                .disabled(workspace.highlightVideos.isEmpty)
+            }
+
             Button {
                 runSavePanel()
             } label: {
-                Label("Download montage", systemImage: "arrow.down.circle.fill")
+                Label("Download highlight", systemImage: "arrow.down.circle.fill")
                     .frame(minWidth: 180)
             }
             .buttonStyle(.borderedProminent)
@@ -252,6 +390,8 @@ struct HighlightResultsView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
     }
+
+    // MARK: - File operations
 
     private func runSavePanel() {
         guard let highlight = workspace.highlightVideo else { return }
@@ -268,6 +408,35 @@ struct HighlightResultsView: View {
                 exportError = nil
             } catch {
                 exportError = error.localizedDescription
+            }
+        }
+    }
+
+    private func runDownloadAllPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.title = "Choose a folder for all highlights"
+        panel.prompt = "Save here"
+        panel.begin { response in
+            guard response == .OK, let folder = panel.url else { return }
+            var errors: [String] = []
+            for (index, video) in workspace.highlightVideos.enumerated() {
+                let name = suggestedFileName(for: video, index: index)
+                let destination = folder.appendingPathComponent(name)
+                do {
+                    try? FileManager.default.removeItem(at: destination)
+                    try FileManager.default.copyItem(at: video.url, to: destination)
+                } catch {
+                    errors.append(error.localizedDescription)
+                }
+            }
+            if errors.isEmpty {
+                exportError = nil
+            } else {
+                exportError = "Some highlights couldn't be saved: \(errors.joined(separator: "; "))"
             }
         }
     }
@@ -292,12 +461,16 @@ struct HighlightResultsView: View {
         }
     }
 
-    private func suggestedFileName(for highlight: HighlightVideo) -> String {
+    private func suggestedFileName(for highlight: HighlightVideo, index: Int? = nil) -> String {
         let base = highlight.plan.title
             .lowercased()
             .replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
             .trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        return (base.isEmpty ? "highlight" : String(base.prefix(48))) + ".mp4"
+        let prefix = base.isEmpty ? "highlight" : String(base.prefix(48))
+        if let index {
+            return "\(String(format: "%02d", index + 1))-\(prefix).mp4"
+        }
+        return "\(prefix).mp4"
     }
 
     private func suggestedSubtitleFileName(for highlight: HighlightVideo, kind: SubtitleExportKind) -> String {
@@ -313,6 +486,10 @@ struct HighlightResultsView: View {
             suffix = "rendered"
         }
         return "\(base.isEmpty ? "highlight" : String(base.prefix(42)))-\(suffix).srt"
+    }
+
+    private func subtitleHeightLabel(_ value: Double) -> String {
+        "\(Int((AppSettings.clampedSubtitleHeight(value) * 100).rounded()))%"
     }
 }
 
